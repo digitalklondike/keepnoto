@@ -22,6 +22,17 @@ Storybook is the required place to document reusable UI components. Every import
 
 Create tokens and reusable components before product pages.
 <!-- END:keepnoto-project-docs -->
+<!-- BEGIN:keepnoto-context7-rules -->
+# Context7 usage
+
+Use Context7 before changing or configuring external libraries, frameworks, or APIs where documentation may change over time.
+
+Use Context7 for Next.js routing, App Router, metadata, server/client component patterns; Storybook setup, addons, stories, preview/main configuration; React patterns that depend on current library behavior; animation libraries such as Motion or Framer Motion; UI, icon, form, and validation libraries; authentication, database, storage, payments, or API integrations; and dependency installation, upgrades, or configuration changes.
+
+Do not use Context7 for simple copy changes, project documentation edits, local product decisions, or visual direction decisions.
+
+When Context7 is used, the final report must mention what documentation was checked and what decision it informed.
+<!-- END:keepnoto-context7-rules -->
 <!-- BEGIN:keepnoto-qa-rules -->
 # QA Rules
 
