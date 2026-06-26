@@ -4,6 +4,33 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+
+<!-- BEGIN:keepnoto-project-docs -->
+# Keepnoto Project Docs
+
+Keepnoto project docs are the source of truth over generic assumptions.
+
+Before product decisions, read `PROJECT_BRIEF.md` and `PRODUCT_PRINCIPLES.md`.
+
+Before planning features, read `MVP_SCOPE.md`.
+
+Before design system work, read `UI_ARCHITECTURE.md`.
+
+Before UI work, read `DESIGN_DIRECTION.md`, `UI_ARCHITECTURE.md`, and `.agents/skills/keepnoto-visual-design/SKILL.md`.
+
+Storybook is the required place to document reusable UI components. Every important reusable component should eventually have a Storybook story.
+
+Create tokens and reusable components before product pages.
+<!-- END:keepnoto-project-docs -->
+<!-- BEGIN:keepnoto-qa-rules -->
+# QA Rules
+
+Before finishing any development task, read `QA_CHECKLIST.md`.
+
+After every task, report which checks were run. If a check was not run, explain why.
+
+Use Windows-safe commands in reports and instructions because this project is developed on Windows / VS Code PowerShell. Prefer commands such as `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run storybook`, and `npm.cmd run build-storybook`.
+<!-- END:keepnoto-qa-rules -->
 <!-- BEGIN:keepnoto-design-rules -->
 # Skill Usage Rules
 
@@ -34,9 +61,10 @@ Before finishing UI work, run a visual review pass for:
 
 After each task, report:
 
-- Files changed
+- Changed files
 - What was done
 - How to test
-- Whether lint or build was run
-- Any risks or follow-up questions
+- Checks run
+- Checks not run and why
+- Risks or follow-up questions
 <!-- END:keepnoto-design-rules -->
