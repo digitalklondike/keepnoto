@@ -14,7 +14,13 @@ Before product decisions, read `PROJECT_BRIEF.md` and `PRODUCT_PRINCIPLES.md`.
 
 Before planning features, read `MVP_SCOPE.md`.
 
-Before UI work, read `DESIGN_DIRECTION.md` and `.agents/skills/keepnoto-visual-design/SKILL.md`.
+Before design system work, read `UI_ARCHITECTURE.md`.
+
+Before UI work, read `DESIGN_DIRECTION.md`, `UI_ARCHITECTURE.md`, and `.agents/skills/keepnoto-visual-design/SKILL.md`.
+
+Storybook is the required place to document reusable UI components. Every important reusable component should eventually have a Storybook story.
+
+Create tokens and reusable components before product pages.
 <!-- END:keepnoto-project-docs -->
 <!-- BEGIN:keepnoto-design-rules -->
 # Skill Usage Rules
