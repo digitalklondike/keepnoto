@@ -4,6 +4,18 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+
+<!-- BEGIN:keepnoto-project-docs -->
+# Keepnoto Project Docs
+
+Keepnoto project docs are the source of truth over generic assumptions.
+
+Before product decisions, read `PROJECT_BRIEF.md` and `PRODUCT_PRINCIPLES.md`.
+
+Before planning features, read `MVP_SCOPE.md`.
+
+Before UI work, read `DESIGN_DIRECTION.md` and `.agents/skills/keepnoto-visual-design/SKILL.md`.
+<!-- END:keepnoto-project-docs -->
 <!-- BEGIN:keepnoto-design-rules -->
 # Skill Usage Rules
 
