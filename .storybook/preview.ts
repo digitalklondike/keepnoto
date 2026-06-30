@@ -1,4 +1,4 @@
-import type { Preview } from "@storybook/nextjs-vite";
+﻿import type { Preview } from "@storybook/nextjs-vite";
 
 import "../app/globals.css";
 
@@ -23,14 +23,22 @@ const preview: Preview = {
       const theme = context.globals.theme === "dark" ? "dark" : "light";
 
       if (typeof document !== "undefined") {
+        document.documentElement.classList.toggle("dark", theme === "dark");
         document.documentElement.dataset.theme = theme;
         document.documentElement.style.colorScheme = theme;
       }
 
-      return <Story />;
+      return Story();
     },
   ],
   parameters: {
+    backgrounds: {
+      default: "app",
+      values: [
+        { name: "app", value: "var(--background)" },
+        { name: "surface", value: "var(--surface)" },
+      ],
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
