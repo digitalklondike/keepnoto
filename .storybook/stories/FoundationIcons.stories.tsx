@@ -1,11 +1,13 @@
 ﻿import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { HugeiconsIcon } from "@hugeicons/react";
-import Archive01Icon from "@hugeicons/core-free-icons/Archive01Icon";
-import Bookmark02Icon from "@hugeicons/core-free-icons/Bookmark02Icon";
-import Folder01Icon from "@hugeicons/core-free-icons/Folder01Icon";
-import Link01Icon from "@hugeicons/core-free-icons/Link01Icon";
-import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
-import Tag01Icon from "@hugeicons/core-free-icons/Tag01Icon";
+import {
+  Archive01Icon,
+  Bookmark02Icon,
+  Folder01Icon,
+  Link01Icon,
+  Search01Icon,
+  Tag01Icon,
+} from "@hugeicons/core-free-icons";
 
 const icons = [
   ["Save", Bookmark02Icon],
