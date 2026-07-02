@@ -1,7 +1,37 @@
-﻿import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+const typeRows = [
+  {
+    name: "Title",
+    className: "type-title",
+    spec: "28 / 36, 500",
+    sample: "Library",
+  },
+  {
+    name: "16 Regular",
+    className: "type-16",
+    spec: "16 / 21, 400",
+    sample: "Readable interface text",
+  },
+  {
+    name: "16 Semibold",
+    className: "type-16-semibold",
+    spec: "16 / 20, 600",
+    sample: "Supabase Auth - Documentation",
+  },
+  {
+    name: "12 Regular",
+    className: "type-12",
+    spec: "12 / 16, 400",
+    sample: "supabase.com/docs/guides/auth",
+  },
+  {
+    name: "12 Semibold",
+    className: "type-12-semibold",
+    spec: "12 / 16, 600",
+    sample: "auth",
+  },
+];
 
 const meta = {
   title: "Foundation/Typography",
@@ -9,43 +39,35 @@ const meta = {
     layout: "fullscreen",
   },
   render: () => (
-    <main className="min-h-dvh bg-background p-8 text-foreground">
-      <section className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
-          <Badge variant="secondary">Inter UI system</Badge>
-          <div className="space-y-4">
-            <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight">
-              Saved links should feel useful before they feel organized.
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-              Inter is the only UI font. The scale stays restrained and readable
-              for a product where users scan titles, metadata, and saved context.
-            </p>
+    <main className="min-h-dvh p-[var(--space-32)] text-[var(--content-primary)]">
+      <section className="mx-auto flex max-w-[920px] flex-col gap-[var(--space-24)]">
+        <header className="flex flex-col gap-[var(--space-8)]">
+          <p className="type-12-semibold uppercase text-[var(--content-muted)]">Typography</p>
+          <h1 className="type-title">Inter UI type scale</h1>
+          <p className="type-16 max-w-[680px] text-[var(--content-muted)]">
+            The UI uses one compact scale: title, 16 regular/semibold, and 12 regular/semibold.
+          </p>
+        </header>
+
+        <div className="overflow-hidden rounded-[var(--radius-16)] bg-[var(--panel-surface)] backdrop-blur-[1px]">
+          <div className="grid grid-cols-[160px_180px_160px_1fr] gap-[var(--space-16)] border-b border-[var(--border-soft)] px-[var(--space-24)] py-[var(--space-16)] type-12 text-[var(--content-muted)]">
+            <span>Name</span>
+            <span>Class</span>
+            <span>Spec</span>
+            <span>Sample</span>
           </div>
-          <div className="space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">Label</p>
-            <p className="text-sm font-medium">Saved to Product Research</p>
-            <p className="text-base">A readable body line for link summaries.</p>
-            <p className="text-lg font-semibold">A strong saved-link title.</p>
-            <p className="text-2xl font-semibold tracking-tight">
-              A calm section heading
-            </p>
-          </div>
+          {typeRows.map((row) => (
+            <div
+              key={row.className}
+              className="grid grid-cols-[160px_180px_160px_1fr] items-center gap-[var(--space-16)] border-b border-[var(--border-soft)] px-[var(--space-24)] py-[var(--space-16)] last:border-b-0"
+            >
+              <span className="type-12 text-[var(--content-muted)]">{row.name}</span>
+              <code className="type-12 text-[var(--content-muted)]">.{row.className}</code>
+              <span className="type-12 text-[var(--content-muted)]">{row.spec}</span>
+              <span className={row.className}>{row.sample}</span>
+            </div>
+          ))}
         </div>
-        <Card className="self-start bg-note text-note-foreground shadow-card">
-          <CardContent className="space-y-3 pt-6">
-            <p className="text-xs font-medium text-note-foreground/70">
-              Saved reason note
-            </p>
-            <p className="font-saved-reason text-3xl leading-snug">
-              Save this for the onboarding teardown. The empty state has the
-              right amount of guidance without feeling heavy.
-            </p>
-            <p className="text-sm text-note-foreground/75">
-              Caveat is reserved for handwritten saved-reason text only.
-            </p>
-          </CardContent>
-        </Card>
       </section>
     </main>
   ),

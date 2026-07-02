@@ -1,487 +1,523 @@
-﻿/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 import * as React from "react";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
-import {
-  Archive01Icon,
-  Bookmark02Icon,
-  Calendar03Icon,
-  Delete02Icon,
-  Edit02Icon,
-  ExternalLinkIcon,
-  FileImageIcon,
-  Folder01Icon,
-  Globe02Icon,
-  Link01Icon,
-  Moon02Icon,
-  Search01Icon,
-  Sun03Icon,
-  Tag01Icon,
-} from "@hugeicons/core-free-icons";
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Button as BaseButton } from "@/components/ui/button";
+import { IconTooltip, type IconTooltipSide } from "@/components/keepnoto/icon-tooltip";
+import { BookmarkIcon, Icons } from "@/components/keepnoto/icons";
 import { cn } from "@/lib/utils";
 
-export type KntVisualState = "default" | "hover" | "pressed" | "selected";
+export type VisualState = "default" | "hover" | "pressed" | "selected";
+export type IconName = IconSvgElement;
+export type ButtonTone = "primary" | "secondary" | "secondaryDanger" | "ghost";
 
-export type KntIconName = IconSvgElement;
+const gradientClassName = "bg-[image:var(--gradient-primary)]";
 
-function KntIcon({
+export function Icon({
   icon,
   className,
-  size = 18,
+  size = 24,
+  strokeWidth = 2,
 }: {
   icon: IconSvgElement;
   className?: string;
   size?: number;
+  strokeWidth?: number;
 }) {
   return (
     <HugeiconsIcon
       icon={icon}
       size={size}
       color="currentColor"
-      strokeWidth={1.5}
-      className={className}
+      strokeWidth={strokeWidth}
+      className={cn("shrink-0", className)}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     />
   );
 }
 
-export type KntSidebarItemProps = {
-  icon: IconSvgElement;
-  label: string;
-  active?: boolean;
-  disabled?: boolean;
-  href?: string;
-  className?: string;
+export type ButtonProps = React.ComponentProps<typeof BaseButton> & {
+  tone?: ButtonTone;
+  visualState?: VisualState;
 };
 
-export function KntSidebarItem({
-  icon,
-  label,
-  active,
-  disabled,
-  href,
-  className,
-}: KntSidebarItemProps) {
-  const content = (
-    <>
-      <KntIcon icon={icon} size={19} />
-      <span className="pointer-events-none absolute left-[calc(100%+var(--spacing-2))] top-1/2 z-10 -translate-y-1/2 rounded-md bg-popover px-2 py-1 text-xs font-medium text-popover-foreground opacity-0 shadow-soft ring-1 ring-border transition-opacity group-hover/sidebar-item:opacity-100 group-focus-visible/sidebar-item:opacity-100">
-        {label}
-      </span>
-    </>
-  );
-
-  const sharedClassName = cn(
-    "group/sidebar-item relative text-muted-foreground",
-    "hover:bg-secondary hover:text-secondary-foreground",
-    "data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-soft",
-    className
-  );
-
-  if (href && !disabled) {
-    return (
-      <a
-        aria-label={label}
-        aria-current={active ? "page" : undefined}
-        data-active={active ? "true" : undefined}
-        href={href}
-        className={cn(
-          "inline-flex size-9 items-center justify-center rounded-lg outline-none transition-all focus-visible:ring-3 focus-visible:ring-ring/50 active:translate-y-px",
-          sharedClassName
-        )}
-      >
-        {content}
-      </a>
-    );
-  }
-
-  return (
-    <Button
-      aria-label={label}
-      aria-pressed={active || undefined}
-      data-active={active ? "true" : undefined}
-      disabled={disabled}
-      variant="ghost"
-      size="icon-lg"
-      className={sharedClassName}
-    >
-      {content}
-    </Button>
-  );
-}
-
-export type KntSidebarProps = {
-  items: KntSidebarItemProps[];
-  activeLabel?: string;
-  className?: string;
+const buttonToneClassName: Record<ButtonTone, string> = {
+  primary: cn("text-[var(--white)] hover:brightness-105", gradientClassName),
+  secondary: "bg-[var(--control-surface)] text-[var(--content-primary)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+  secondaryDanger: cn(
+    "bg-[var(--control-surface)] text-[var(--danger-muted)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+    "hover:text-[var(--danger)] data-[state=hover]:text-[var(--danger)]"
+  ),
+  ghost: "bg-transparent text-[var(--content-primary)] hover:bg-[var(--control-surface)] data-[state=hover]:bg-[var(--control-surface)]",
 };
 
-export function KntSidebar({ items, activeLabel, className }: KntSidebarProps) {
+const buttonSelectedClassName: Record<ButtonTone, string> = {
+  primary: "data-[state=selected]:text-[var(--white)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  secondary: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--content-primary)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  secondaryDanger: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--danger-muted)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  ghost: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--content-primary)] data-[state=selected]:shadow-[var(--shadow-active)]",
+};
+
+export function Button({ tone = "secondary", visualState = "default", className, children, ...props }: ButtonProps) {
   return (
-    <aside
-      aria-label="Keepnoto navigation"
+    <BaseButton
+      {...props}
+      data-state={visualState}
       className={cn(
-        "flex w-14 flex-col items-center gap-2 rounded-2xl bg-sidebar px-2 py-3 text-sidebar-foreground shadow-card ring-1 ring-sidebar-border",
+        "gap-[var(--space-8)] rounded-[var(--radius-round)] border-0 type-16-semibold shadow-none transition-[filter,transform,background-color,opacity]",
+        "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+        "data-[state=hover]:brightness-105 data-[state=pressed]:translate-y-px data-[state=pressed]:scale-[0.99]",
+        buttonToneClassName[tone],
+        buttonSelectedClassName[tone],
         className
       )}
     >
-      <div className="mb-1 flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-soft">
-        <KntIcon icon={BookmarkIcon} size={18} />
-      </div>
-      <nav className="flex flex-col items-center gap-1">
-        {items.map((item) => (
-          <KntSidebarItem
-            key={item.label}
-            {...item}
-            active={item.active ?? item.label === activeLabel}
-          />
-        ))}
-      </nav>
-    </aside>
+      {children}
+    </BaseButton>
   );
 }
 
-export type KntTopSearchProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "className"> & {
-  action?: React.ReactNode;
-  state?: KntVisualState;
+export type IconButtonSurface = "page" | "card";
+export type TooltipSide = IconTooltipSide | "auto";
+
+export type IconButtonMode = "control" | "plain";
+
+const iconButtonControlClassName = cn(
+  "relative inline-flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] p-[var(--space-0)] text-[var(--icon-muted)]",
+  "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+  "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
+);
+
+const iconButtonPlainClassName = cn(
+  "relative inline-flex size-[var(--size-24)] items-center justify-center rounded-[var(--radius-8)] bg-transparent p-[var(--space-0)] text-[var(--icon-muted)]",
+  "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+  "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
+);
+const iconButtonToneClassName: Record<ButtonTone, string> = {
+  primary: cn(
+    "text-[var(--white)]",
+    gradientClassName,
+    "hover:brightness-105 data-[state=hover]:brightness-105"
+  ),
+  secondary: cn(
+    "text-[var(--icon-muted)]",
+    "hover:text-[var(--content-primary)] data-[state=hover]:text-[var(--content-primary)]"
+  ),
+  secondaryDanger: cn(
+    "text-[var(--danger-muted)]",
+    "hover:text-[var(--danger)] data-[state=hover]:text-[var(--danger)]"
+  ),
+  ghost: cn(
+    "text-[var(--icon-muted)]",
+    "hover:text-[var(--content-primary)] data-[state=hover]:text-[var(--content-primary)]"
+  ),
+};
+
+function iconButtonSurfaceClassName(surface: IconButtonSurface, tone: ButtonTone) {
+  if (tone === "primary") {
+    return "";
+  }
+
+  if (surface === "card") {
+    return "bg-[var(--card-control)] hover:bg-[var(--card-control-hover)] data-[state=hover]:bg-[var(--card-control-hover)]";
+  }
+
+  return "bg-transparent hover:bg-transparent data-[state=hover]:bg-transparent";
+}
+
+const iconButtonSelectedClassName: Record<ButtonTone, string> = {
+  primary: "data-[state=selected]:text-[var(--white)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  secondary: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--content-primary)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  secondaryDanger: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--danger-muted)] data-[state=selected]:shadow-[var(--shadow-active)]",
+  ghost: "data-[state=selected]:bg-[var(--cream)] data-[state=selected]:text-[var(--content-primary)] data-[state=selected]:shadow-[var(--shadow-active)]",
+};
+
+const iconButtonPlainStateClassName = "bg-transparent text-[var(--icon-muted)] hover:bg-transparent hover:text-[var(--content-primary)] active:bg-transparent data-[state=hover]:bg-transparent data-[state=hover]:text-[var(--content-primary)] data-[state=pressed]:bg-transparent data-[state=pressed]:text-[var(--content-primary)] data-[state=selected]:bg-transparent data-[state=selected]:text-[var(--content-primary)]";
+
+export type IconButtonProps = Omit<ButtonProps, "children"> & {
+  icon: IconSvgElement;
+  label: string;
+  iconSize?: number;
+  active?: boolean;
+  surface?: IconButtonSurface;
+  tooltipSide?: TooltipSide;
+  tooltip?: boolean;
+  mode?: IconButtonMode;
+  href?: string;
+  target?: React.HTMLAttributeAnchorTarget;
+  rel?: string;
+};
+
+export function IconButton({
+  icon,
+  label,
+  iconSize = 20,
+  active,
+  surface = "page",
+  tooltipSide = "right",
+  tooltip = true,
+  tone = "ghost",
+  mode = "control",
+  href,
+  target,
+  rel,
+  visualState = "default",
+  className,
+  ...props
+}: IconButtonProps) {
+  const state = active ? "selected" : visualState;
+  const resolvedTooltipSide: IconTooltipSide = tooltipSide === "auto" ? "left" : tooltipSide;
+  const effectiveTone = mode === "plain" ? "ghost" : tone;
+
+  const buttonClassName = cn(
+    mode === "plain" ? iconButtonPlainClassName : iconButtonControlClassName,
+    mode === "plain" ? iconButtonPlainStateClassName : iconButtonToneClassName[effectiveTone],
+    mode === "control" && iconButtonSurfaceClassName(surface, effectiveTone),
+    mode === "control" && iconButtonSelectedClassName[effectiveTone],
+    props.disabled && "pointer-events-none opacity-45",
+    className
+  );
+
+  const iconElement = <Icon icon={icon} size={iconSize} strokeWidth={mode === "plain" ? 1.8 : 2} />;
+
+  const button = href ? (
+    <a
+      aria-label={label}
+      data-state={state}
+      href={props.disabled ? undefined : href}
+      rel={rel}
+      target={target}
+      className={buttonClassName}
+    >
+      {iconElement}
+    </a>
+  ) : mode === "plain" ? (
+    <button
+      {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
+      aria-label={label}
+      aria-pressed={active || undefined}
+      data-state={state}
+      type={(props as React.ButtonHTMLAttributes<HTMLButtonElement>).type ?? "button"}
+      className={buttonClassName}
+    >
+      {iconElement}
+    </button>
+  ) : (
+    <Button
+      {...props}
+      aria-label={label}
+      aria-pressed={active || undefined}
+      visualState={state}
+      tone={effectiveTone}
+      size="icon-lg"
+      className={buttonClassName}
+    >
+      {iconElement}
+    </Button>
+  );
+
+  if (!tooltip) {
+    return button;
+  }
+
+  return (
+    <IconTooltip label={label} side={resolvedTooltipSide}>
+      {button}
+    </IconTooltip>
+  );
+}
+export type TextFieldVisualState = Exclude<VisualState, "selected"> | "focused";
+
+export type TextFieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "className"> & {
+  icon?: IconSvgElement;
+  visualState?: TextFieldVisualState;
   className?: string;
   inputClassName?: string;
 };
 
-export function KntTopSearch({ action, state = "default", className, inputClassName, ...props }: KntTopSearchProps) {
+export function TextField({
+  icon = Icons.search,
+  visualState = "default",
+  className,
+  inputClassName,
+  ...props
+}: TextFieldProps) {
   return (
     <label
-      data-state={state}
+      data-state={visualState}
       className={cn(
-        "flex h-11 w-full max-w-xl items-center gap-3 rounded-xl bg-card px-3 text-foreground shadow-soft ring-1 ring-border transition-all",
-        "focus-within:ring-3 focus-within:ring-ring/35",
-        "data-[state=hover]:bg-surface-raised data-[state=hover]:shadow-card",
-        "data-[state=pressed]:translate-y-px data-[state=pressed]:ring-ring",
+        "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[1px] transition-[background-color,opacity,box-shadow]",
+        "bg-[var(--panel-surface)] hover:bg-[var(--control-surface)] focus-within:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] active:bg-[var(--control-surface)]",
+        "data-[state=hover]:bg-[var(--control-surface)] data-[state=pressed]:bg-[var(--control-surface)] data-[state=focused]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)]",
+        props.disabled && "pointer-events-none opacity-45",
         className
       )}
     >
-      <KntIcon icon={Search01Icon} className="text-muted-foreground" />
-      <span className="sr-only">Search saved links</span>
+      <span className="flex size-[var(--size-24)] items-center justify-center text-[var(--content-muted)] transition-colors group-hover:text-[var(--content-primary)] group-focus-within:text-[var(--content-primary)] group-data-[state=hover]:text-[var(--content-primary)] group-data-[state=pressed]:text-[var(--content-primary)] group-data-[state=focused]:text-[var(--content-primary)]">
+        <Icon icon={icon} size={20} />
+      </span>
+      <span className="sr-only">Field</span>
       <input
         {...props}
         className={cn(
-          "min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
+          "ml-[var(--space-8)] h-[var(--size-24)] min-w-0 flex-1 bg-transparent type-16 text-[var(--content-primary)] outline-none placeholder:text-[var(--content-muted)] disabled:cursor-not-allowed disabled:opacity-50",
           inputClassName
         )}
       />
-      {action}
     </label>
   );
 }
 
-export type KntThemeToggleProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  theme?: "light" | "dark";
-  pressed?: boolean;
+export type TagProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  add?: boolean;
+  visualState?: Exclude<VisualState, "selected">;
 };
 
-export function KntThemeToggle({ theme = "light", pressed, className, ...props }: KntThemeToggleProps) {
-  const isDark = theme === "dark";
-
+export function Tag({ add, visualState = "default", className, children, ...props }: TagProps) {
   return (
-    <Button
+    <button
       {...props}
-      aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
-      aria-pressed={pressed ?? isDark}
-      data-pressed={pressed ? "true" : undefined}
-      variant="outline"
-      size="icon-lg"
+      data-state={visualState}
+      data-add={add ? "true" : undefined}
+      type={props.type ?? "button"}
       className={cn(
-        "bg-card text-muted-foreground shadow-soft hover:text-foreground data-[pressed=true]:bg-primary data-[pressed=true]:text-primary-foreground",
+        "inline-flex h-[var(--size-24)] items-center rounded-[var(--radius-round)] border border-transparent bg-[var(--tag-fill)] px-[var(--space-12)] py-[var(--space-4)] type-12-semibold text-[var(--content-primary)] transition-[transform,background-color,border-color,color,opacity]",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+        "hover:bg-[var(--tag-hover)] active:scale-[0.98] active:bg-[var(--tag-pressed)] data-[state=hover]:bg-[var(--tag-hover)] data-[state=pressed]:scale-[0.98] data-[state=pressed]:bg-[var(--tag-pressed)]",
+        "data-[add=true]:border-[var(--add-tag-border)] data-[add=true]:border-dashed data-[add=true]:bg-[var(--add-tag-fill)] data-[add=true]:text-[var(--content-muted)]",
+        "data-[add=true]:hover:border-[var(--add-tag-border-hover)] data-[add=true]:hover:bg-[var(--add-tag-hover)] data-[add=true]:hover:text-[var(--content-primary)]",
+        "data-[add=true]:data-[state=hover]:border-[var(--add-tag-border-hover)] data-[add=true]:data-[state=hover]:bg-[var(--add-tag-hover)] data-[add=true]:data-[state=hover]:text-[var(--content-primary)]",
+        "data-[add=true]:active:bg-[var(--add-tag-pressed)] data-[add=true]:data-[state=pressed]:bg-[var(--add-tag-pressed)] data-[add=true]:data-[state=pressed]:border-[var(--add-tag-border-pressed)] data-[add=true]:data-[state=pressed]:text-[var(--content-primary)]",
+        props.disabled && "pointer-events-none opacity-45 grayscale-[0.2]",
         className
       )}
     >
-      <KntIcon icon={isDark ? Moon02Icon : Sun03Icon} size={18} />
-    </Button>
+      {children}
+    </button>
   );
 }
 
-export type KntTagTab = {
-  label: string;
-  count?: number;
-  disabled?: boolean;
+export type TabProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  as?: "button" | "summary";
+  selected?: boolean;
+  hasMenu?: boolean;
+  open?: boolean;
+  visualState?: VisualState;
 };
 
-export type KntTagTabsProps = {
-  tabs: KntTagTab[];
-  activeLabel?: string;
+const tabClassName = cn(
+  "inline-flex h-[var(--size-32)] shrink-0 cursor-pointer items-center justify-center gap-[var(--space-8)] overflow-hidden rounded-[var(--radius-10)] bg-[var(--card-control)] bg-clip-padding px-[var(--space-16)] type-16 text-[var(--content-primary)] shadow-none transition-[filter,transform,background-color,opacity] duration-150",
+  "hover:bg-[var(--card-control-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
+  "data-[state=hover]:bg-[var(--card-control-hover)] data-[state=open]:bg-[var(--card-control-open)] data-popup-open:bg-[var(--card-control-open)] data-[state=open]:text-[var(--card-control-open-text)] data-popup-open:text-[var(--card-control-open-text)] data-[state=open]:ring-1 data-popup-open:ring-1 data-[state=open]:ring-inset data-popup-open:ring-inset data-[state=open]:ring-[var(--card-control-open-ring)] data-popup-open:ring-[var(--card-control-open-ring)] data-[state=pressed]:scale-[0.98]",
+  "data-[state=selected]:pointer-events-none data-[state=selected]:cursor-default data-[state=selected]:text-[var(--white)] data-[state=selected]:transition-none"
+);
+
+export const Tab = React.forwardRef<HTMLElement, TabProps>(function Tab(
+  { as = "button", selected, hasMenu, open, visualState = "default", className, children, ...props },
+  ref
+) {
+  const state = selected ? "selected" : open ? "open" : visualState;
+  const sharedClassName = cn(
+    tabClassName,
+    hasMenu && "gap-[var(--space-4)]",
+    selected && gradientClassName,
+    props.disabled && "pointer-events-none opacity-45",
+    className
+  );
+  const content = (
+    <>
+      <span>{children}</span>
+      {hasMenu ? (
+        <Icon
+          icon={Icons.chevronDown}
+          size={20}
+          strokeWidth={1.8}
+          className={cn("shrink-0 transition-transform duration-150 group-data-[popup-open]/tab:rotate-180", open && "rotate-180")}
+        />
+      ) : null}
+    </>
+  );
+
+  if (as === "summary") {
+    const summaryProps = { ...props } as React.HTMLAttributes<HTMLElement> & { disabled?: boolean; type?: string };
+    delete summaryProps.disabled;
+    delete summaryProps.type;
+
+    return (
+      <summary
+        {...summaryProps}
+        ref={ref as React.Ref<HTMLElement>}
+        role={props.role ?? "tab"}
+        aria-selected={selected}
+        aria-expanded={hasMenu ? open : props["aria-expanded"]}
+        data-state={state}
+        className={cn(sharedClassName, "list-none [&::-webkit-details-marker]:hidden")}
+      >
+        {content}
+      </summary>
+    );
+  }
+
+  return (
+    <button
+      {...props}
+      ref={ref as React.Ref<HTMLButtonElement>}
+      role={props.role ?? "tab"}
+      aria-selected={selected}
+      aria-expanded={hasMenu ? open : props["aria-expanded"]}
+      data-state={state}
+      type={props.type ?? "button"}
+      className={cn(sharedClassName, "group/tab")}
+    >
+      {content}
+    </button>
+  );
+});
+
+export type BrandLogoProps = {
+  size?: number;
   className?: string;
 };
 
-export function KntTagTabs({ tabs, activeLabel, className }: KntTagTabsProps) {
+export function BrandLogo({ size = 32, className }: BrandLogoProps) {
+  const gradientId = React.useId().replace(/:/g, "");
+  const gradientA = `${gradientId}-a`;
+  const gradientB = `${gradientId}-b`;
+
   return (
-    <div
-      role="tablist"
-      aria-label="Saved link filters"
-      className={cn("flex flex-wrap items-center gap-2", className)}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      className={cn("shrink-0", className)}
+      style={{ width: size, height: size, minWidth: size, minHeight: size }}
     >
-      {tabs.map((tab) => {
-        const selected = tab.label === activeLabel;
-        return (
-          <Button
-            key={tab.label}
-            role="tab"
-            aria-selected={selected}
-            disabled={tab.disabled}
-            data-selected={selected ? "true" : undefined}
-            variant={selected ? "default" : "secondary"}
-            size="sm"
-            className="rounded-4xl data-[selected=true]:shadow-soft"
-          >
-            <span>{tab.label}</span>
-            {typeof tab.count === "number" ? (
-              <span className="text-xs opacity-75">{tab.count}</span>
-            ) : null}
-          </Button>
-        );
-      })}
-    </div>
+      <path
+        d="M9.6178 16.0015C15.04 12.7355 18.6667 6.79125 18.6667 0H13.3334C13.3334 7.36382 7.36383 13.3334 0 13.3334V18.6697C3.58773 18.6697 6.84178 20.0841 9.24209 22.3898C9.30549 22.4507 9.36829 22.5122 9.43048 22.5743C10.3045 23.4485 11.0574 24.443 11.6623 25.5309C12.2886 23.5603 13.1935 21.7139 14.3306 20.0378C13.9724 19.6091 13.5954 19.1967 13.2009 18.8022L13.1998 18.8012C12.1278 17.7303 10.9251 16.7884 9.6178 16.0015Z"
+        fill={`url(#${gradientA})`}
+      />
+      <path
+        d="M22.3822 15.9985C16.96 19.2645 13.3333 25.2087 13.3333 32H18.6666C18.6666 24.6361 24.6362 18.6666 32 18.6666V13.3303C28.4122 13.3303 25.1582 11.9159 22.7579 9.61023C22.6945 9.54933 22.6317 9.48778 22.5695 9.42566C21.6954 8.55149 20.9425 7.55697 20.3377 6.4691C19.7114 8.43967 18.8065 10.2861 17.6693 11.9622C18.0276 12.3909 18.4046 12.8033 18.7991 13.1978L18.8001 13.1988C19.8721 14.2697 21.0749 15.2116 22.3822 15.9985Z"
+        fill={`url(#${gradientB})`}
+      />
+      <defs>
+        <linearGradient id={gradientA} x1="0" y1="16" x2="55.9429" y2="16" gradientUnits="userSpaceOnUse">
+          <stop stopColor="var(--accent-start)" />
+          <stop offset="1" stopColor="var(--accent-end)" />
+        </linearGradient>
+        <linearGradient id={gradientB} x1="0" y1="16" x2="55.9429" y2="16" gradientUnits="userSpaceOnUse">
+          <stop stopColor="var(--accent-start)" />
+          <stop offset="1" stopColor="var(--accent-end)" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }
 
-export type KntLinkLogoProps = {
+export type LinkLogoProps = {
   src?: string;
   alt?: string;
   fallback: string;
+  color?: string;
   size?: "sm" | "md" | "lg";
   className?: string;
 };
 
-export function KntLinkLogo({ src, alt = "", fallback, size = "md", className }: KntLinkLogoProps) {
+export function LinkLogo({
+  src,
+  alt = "",
+  fallback,
+  color = "var(--favicon-1)",
+  size = "sm",
+  className,
+}: LinkLogoProps) {
   const sizeClassName = {
-    sm: "size-8 text-xs",
-    md: "size-10 text-sm",
-    lg: "size-12 text-base",
+    sm: "size-[var(--size-32)] rounded-[var(--radius-8)] type-16-semibold",
+    md: "size-[var(--size-40)] rounded-[var(--radius-10)] type-16-semibold",
+    lg: "size-[var(--size-48)] rounded-[var(--radius-12)] type-16-semibold",
   }[size];
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-secondary font-semibold text-secondary-foreground ring-1 ring-border",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden text-[var(--white)]",
         sizeClassName,
         className
       )}
+      style={{ backgroundColor: src ? undefined : color }}
     >
-      {src ? (
-        <img src={src} alt={alt} className="size-full object-cover" />
-      ) : (
-        <span aria-hidden="true">{fallback.slice(0, 1).toUpperCase()}</span>
-      )}
+      {src ? <img src={src} alt={alt} className="size-full object-cover" /> : fallback.slice(0, 1).toUpperCase()}
     </span>
   );
 }
 
-export type KntLinkPreviewCardProps = {
+
+export type LinkPreviewCardProps = Omit<React.HTMLAttributes<HTMLElement>, "title"> & {
   title: string;
-  domain: string;
+  description: string;
+  url: string;
   imageSrc?: string;
-  fallbackLabel?: string;
-  className?: string;
+  imageAlt?: string;
+  externalHref?: string;
+  externalLabel?: string;
 };
 
-export function KntLinkPreviewCard({
+// Preview content is passive product data: later it can be generated from resource metadata.
+// The card itself is not interactive; only the external-link action is.
+export function LinkPreviewCard({
   title,
-  domain,
-  imageSrc,
-  fallbackLabel = "Link preview",
-  className,
-}: KntLinkPreviewCardProps) {
-  return (
-    <Card className={cn("gap-0 bg-surface-raised shadow-soft", className)}>
-      <div className="aspect-[16/9] overflow-hidden bg-surface-warm">
-        {imageSrc ? (
-          <img src={imageSrc} alt="" className="size-full object-cover" />
-        ) : (
-          <div className="flex size-full flex-col items-center justify-center gap-2 text-muted-foreground">
-            <KntIcon icon={FileImageIcon} size={22} />
-            <span className="text-xs font-medium">{fallbackLabel}</span>
-          </div>
-        )}
-      </div>
-      <CardHeader className="gap-1">
-        <CardTitle className="line-clamp-2">{title}</CardTitle>
-        <CardDescription className="flex items-center gap-1.5">
-          <KntIcon icon={Globe02Icon} size={14} />
-          {domain}
-        </CardDescription>
-      </CardHeader>
-    </Card>
-  );
-}
-
-export type KntMetadataGridProps = {
-  source: string;
-  savedDate: string;
-  createdDate?: string;
-  type: string;
-  tags?: string[];
-  className?: string;
-};
-
-export function KntMetadataGrid({
-  source,
-  savedDate,
-  createdDate,
-  type,
-  tags = [],
-  className,
-}: KntMetadataGridProps) {
-  const items = [
-    { label: "Source", value: source, icon: Globe02Icon },
-    { label: "Saved", value: savedDate, icon: Calendar03Icon },
-    { label: "Created", value: createdDate ?? "Unknown", icon: Archive01Icon },
-    { label: "Type", value: type, icon: Link01Icon },
-  ];
-
-  return (
-    <div className={cn("grid gap-3 rounded-xl bg-surface p-3 ring-1 ring-border", className)}>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-start gap-2 rounded-lg bg-card p-3 shadow-soft">
-            <KntIcon icon={item.icon} size={16} className="mt-0.5 text-muted-foreground" />
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-muted-foreground">{item.label}</p>
-              <p className="truncate text-sm font-medium text-foreground">{item.value}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-      {tags.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Badge key={tag} variant="secondary">
-              <KntIcon icon={Tag01Icon} size={12} />
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export type KntDetailActionsProps = {
-  disabled?: boolean;
-  className?: string;
-};
-
-export function KntDetailActions({ disabled, className }: KntDetailActionsProps) {
-  return (
-    <div className={cn("flex flex-wrap items-center gap-2", className)}>
-      <Button disabled={disabled} variant="outline" size="sm">
-        <KntIcon icon={Edit02Icon} size={15} />
-        Edit
-      </Button>
-      <Button disabled={disabled} variant="destructive" size="sm">
-        <KntIcon icon={Delete02Icon} size={15} />
-        Delete
-      </Button>
-      <Button disabled={disabled} size="sm">
-        <KntIcon icon={ExternalLinkIcon} size={15} />
-        Open link
-      </Button>
-    </div>
-  );
-}
-
-export type KntLinkCardProps = {
-  title: string;
-  domain: string;
-  description?: string;
-  savedReason?: string;
-  logoSrc?: string;
-  previewSrc?: string;
-  tags?: string[];
-  selected?: boolean;
-  pressed?: boolean;
-  state?: KntVisualState;
-  className?: string;
-};
-
-export function KntLinkCard({
-  title,
-  domain,
   description,
-  savedReason,
-  logoSrc,
-  previewSrc,
-  tags = [],
-  selected,
-  pressed,
-  state = "default",
+  url,
+  imageSrc,
+  imageAlt = "",
+  externalHref,
+  externalLabel = "Open preview link",
   className,
-}: KntLinkCardProps) {
-  const visualState = selected ? "selected" : pressed ? "pressed" : state;
-
+  ...props
+}: LinkPreviewCardProps) {
   return (
     <article
-      data-state={visualState}
+      {...props}
       className={cn(
-        "group rounded-2xl bg-card text-card-foreground shadow-soft ring-1 ring-border transition-all",
-        "hover:-translate-y-0.5 hover:bg-surface-raised hover:shadow-card",
-        "data-[state=hover]:-translate-y-0.5 data-[state=hover]:bg-surface-raised data-[state=hover]:shadow-card",
-        "data-[state=pressed]:translate-y-px data-[state=pressed]:shadow-soft data-[state=pressed]:ring-ring",
-        "data-[state=selected]:bg-surface-raised data-[state=selected]:shadow-card data-[state=selected]:ring-primary",
+        "flex h-[var(--preview-card-height)] w-full gap-[var(--space-16)] rounded-[var(--radius-12)] bg-[var(--white)] p-[var(--space-8)] pr-[var(--space-16)] text-[var(--content-primary)]",
         className
       )}
     >
-      {previewSrc ? (
-        <div className="aspect-[16/7] overflow-hidden rounded-t-2xl bg-surface-warm">
-          <img src={previewSrc} alt="" className="size-full object-cover transition-transform group-hover:scale-[1.02]" />
+      <div className="flex size-[var(--preview-media-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-10)] bg-[var(--content-primary)] text-[var(--white)]">
+        {imageSrc ? <img src={imageSrc} alt={imageAlt} className="size-full object-cover" /> : <Icon icon={Icons.fileImage} size={20} />}
+      </div>
+
+      <div className="flex h-[var(--preview-media-size)] min-w-0 flex-1 flex-col justify-between gap-[var(--space-8)] py-[var(--space-8)]">
+        <div className="min-h-0 min-w-0">
+          <h3 className="truncate type-16-semibold text-[var(--content-primary)]">{title}</h3>
+          <p className="mt-[var(--space-4)] line-clamp-3 whitespace-pre-line type-16 text-[var(--content-muted)]">
+            {description}
+          </p>
         </div>
-      ) : null}
-      <div className="space-y-4 p-4">
-        <div className="flex items-start gap-3">
-          <KntLinkLogo src={logoSrc} fallback={domain} alt="" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-muted-foreground">{domain}</p>
-            <h3 className="mt-1 line-clamp-2 text-lg font-semibold leading-snug tracking-tight text-foreground">
-              {title}
-            </h3>
-          </div>
+
+        <div className="flex h-[var(--size-24)] shrink-0 items-center justify-between gap-[var(--space-8)] type-12 text-[var(--content-muted)]">
+          <span className="min-w-0 truncate">{url}</span>
+          <IconButton
+            icon={Icons.external}
+            label={externalLabel}
+            mode="plain"
+            href={externalHref}
+            disabled={!externalHref}
+            target={externalHref ? "_blank" : undefined}
+            rel={externalHref ? "noreferrer" : undefined}
+            tooltipSide="left"
+          />
         </div>
-        {description ? (
-          <p className="line-clamp-2 text-sm leading-6 text-muted-foreground">{description}</p>
-        ) : null}
-        {savedReason ? (
-          <div className="rounded-xl bg-note px-3 py-2 text-note-foreground">
-            <p className="font-saved-reason text-xl leading-snug">{savedReason}</p>
-          </div>
-        ) : null}
-        {tags.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
-              <Badge key={tag} variant="secondary">{tag}</Badge>
-            ))}
-          </div>
-        ) : null}
       </div>
     </article>
   );
 }
+export { BookmarkIcon, Icons };
 
-export const BookmarkIcon = Bookmark02Icon;
-export const KntIcons = {
-  archive: Archive01Icon,
-  bookmark: Bookmark02Icon,
-  edit: Edit02Icon,
-  external: ExternalLinkIcon,
-  folder: Folder01Icon,
-  link: Link01Icon,
-  search: Search01Icon,
-  tag: Tag01Icon,
-};
+
+
 
 
 
