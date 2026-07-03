@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Dropdown, DropdownItem } from "@/components/keepnoto/dropdown";
 import { LinkCard } from "@/components/keepnoto/link-card";
+import { cn } from "@/lib/utils";
 import {
   BrandLogo,
   Button,
@@ -133,10 +134,18 @@ function getVisibleTabs(activeTab: string) {
   return [allTab, activeOverflowTab, ...defaultVisible.filter((tab) => tab.label !== activeTab).slice(0, 2)];
 }
 
+function orderLinksByFavorite(links: typeof savedLinks, favoriteLinkIds: Set<string>) {
+  const favoriteLinks = links.filter((link) => favoriteLinkIds.has(link.id));
+  const regularLinks = links.filter((link) => !favoriteLinkIds.has(link.id));
+
+  return [...favoriteLinks, ...regularLinks];
+}
+
 export default function Home() {
   const [libraryBoundary, setLibraryBoundary] = React.useState<HTMLElement | null>(null);
   const [activeTab, setActiveTab] = React.useState(filterTabs[0].label);
   const [selectedLinkId, setSelectedLinkId] = React.useState(savedLinks[0].id);
+  const [favoriteLinkIds, setFavoriteLinkIds] = React.useState<Set<string>>(() => new Set());
 
   const visibleFilterTabs = React.useMemo(() => getVisibleTabs(activeTab), [activeTab]);
   const overflowFilterTabs = React.useMemo(
@@ -147,16 +156,38 @@ export default function Home() {
     () => (activeTab === "All links" ? savedLinks : savedLinks.filter((link) => link.tags.includes(activeTab))),
     [activeTab]
   );
-  const selectedLink = React.useMemo(
-    () => filteredLinks.find((link) => link.id === selectedLinkId) ?? filteredLinks[0] ?? savedLinks[0],
-    [filteredLinks, selectedLinkId]
+  const orderedLinks = React.useMemo(
+    () => orderLinksByFavorite(filteredLinks, favoriteLinkIds),
+    [filteredLinks, favoriteLinkIds]
   );
+  const selectedLink = React.useMemo(
+    () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? savedLinks[0],
+    [orderedLinks, selectedLinkId]
+  );
+  const isSelectedLinkFavorite = favoriteLinkIds.has(selectedLink.id);
 
   const selectTab = (tab: string) => {
-    const nextLinks = tab === "All links" ? savedLinks : savedLinks.filter((link) => link.tags.includes(tab));
+    const nextLinks = orderLinksByFavorite(
+      tab === "All links" ? savedLinks : savedLinks.filter((link) => link.tags.includes(tab)),
+      favoriteLinkIds
+    );
 
     setActiveTab(tab);
     setSelectedLinkId(nextLinks[0]?.id ?? savedLinks[0].id);
+  };
+
+  const toggleFavorite = (linkId: string) => {
+    setFavoriteLinkIds((current) => {
+      const next = new Set(current);
+
+      if (next.has(linkId)) {
+        next.delete(linkId);
+      } else {
+        next.add(linkId);
+      }
+
+      return next;
+    });
   };
 
   return (
@@ -270,7 +301,7 @@ export default function Home() {
               </div>
 
               <div className="mt-[var(--space-20)] flex min-h-0 w-[var(--layout-library-inner-width)] flex-1 flex-col gap-[var(--space-8)] overflow-hidden">
-                {filteredLinks.map((link) => (
+                {orderedLinks.map((link) => (
                   <LinkCard
                     key={link.id}
                     title={link.title}
@@ -282,6 +313,7 @@ export default function Home() {
                     faviconFallback={link.domain}
                     faviconColor={link.logoColor}
                     visualState={link.id === selectedLink.id ? "active" : "default"}
+                    favorite={favoriteLinkIds.has(link.id)}
                     onClick={() => setSelectedLinkId(link.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -302,7 +334,19 @@ export default function Home() {
                   {selectedLink.title}
                 </h2>
                 <div className="flex h-[var(--size-48)] shrink-0 items-center gap-[var(--space-8)]">
-                  <IconButton icon={Icons.bookmark} label="Bookmark selected link" surface="card" tooltipSide="right" className="text-[var(--accent-start)] hover:!text-[var(--accent-start)] data-[state=hover]:!text-[var(--accent-start)]" />
+                  <IconButton
+                    icon={Icons.bookmark}
+                    label={isSelectedLinkFavorite ? "Remove from favorites" : "Add to favorites"}
+                    aria-pressed={isSelectedLinkFavorite || undefined}
+                    surface="card"
+                    tooltipSide="right"
+                    onClick={() => toggleFavorite(selectedLink.id)}
+                    className={cn(
+                      "text-[var(--accent-start)] hover:!text-[var(--accent-start)] data-[state=hover]:!text-[var(--accent-start)]",
+                      isSelectedLinkFavorite &&
+                        "!text-[var(--favorite-accent)] hover:!text-[var(--favorite-accent)] favorite-icon-filled"
+                    )}
+                  />
                   <IconButton icon={Icons.share} label="Share selected link" iconSize={20} surface="card" tooltipSide="right" />
                 </div>
               </div>
@@ -322,7 +366,7 @@ export default function Home() {
                     <p className="type-label text-[var(--content-muted)]">Tags</p>
                     <div className="flex h-[var(--size-24)] flex-wrap gap-[var(--space-8)]">
                       {selectedLink.tags.slice(0, 2).map((tag) => (
-                        <Tag key={tag}>{tag}</Tag>
+                        <Tag key={tag} aria-label={`Filter library by ${tag}`} onClick={() => selectTab(tag)}>{tag}</Tag>
                       ))}
                       <Tag add>+ Add tag</Tag>
                     </div>

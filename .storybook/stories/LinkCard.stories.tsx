@@ -1,4 +1,4 @@
-﻿import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import { LinkCard, type LinkCardVisualState } from "@/components/keepnoto/link-card";
 
@@ -18,12 +18,13 @@ const crowdedLink = {
   tags: ["auth", "docs", "supabase", "oauth", "magic links", "sessions", "security"],
 };
 
-const states: Array<{ label: string; visualState: LinkCardVisualState }> = [
+const states: Array<{ label: string; visualState: LinkCardVisualState; favorite?: boolean }> = [
   { label: "Default", visualState: "default" },
   { label: "Hover", visualState: "hover" },
   { label: "Pressed", visualState: "pressed" },
   { label: "Focused", visualState: "focused" },
   { label: "Active", visualState: "active" },
+  { label: "Favorite", visualState: "active", favorite: true },
   { label: "Loading", visualState: "loading" },
 ];
 
@@ -44,7 +45,7 @@ export const States: Story = {
         {states.map((state) => (
           <div key={state.label} className="grid grid-cols-[96px_var(--link-card-width)] items-start gap-[var(--space-16)]">
             <div className="pt-[var(--space-20)] type-12-semibold text-[var(--content-muted)]">{state.label}</div>
-            <LinkCard {...sampleLink} visualState={state.visualState} />
+            <LinkCard {...sampleLink} visualState={state.visualState} favorite={state.favorite} />
           </div>
         ))}
       </div>
