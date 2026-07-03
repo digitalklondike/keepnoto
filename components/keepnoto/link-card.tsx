@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { LinkLogo } from "@/components/keepnoto/product-components";
+import { Icon, Icons, LinkLogo } from "@/components/keepnoto/product-components";
 import { cn } from "@/lib/utils";
 
 export type LinkCardVisualState = "default" | "hover" | "pressed" | "focused" | "active" | "loading";
@@ -19,6 +19,7 @@ export type LinkCardProps = Omit<React.HTMLAttributes<HTMLElement>, "title"> & {
   faviconFallback?: string;
   faviconColor?: string;
   visualState?: LinkCardVisualState;
+  favorite?: boolean;
 };
 
 type LinkCardTagProps = React.HTMLAttributes<HTMLSpanElement> & {
@@ -124,6 +125,7 @@ export function LinkCard({
   faviconFallback,
   faviconColor,
   visualState = "default",
+  favorite,
   className,
   ...props
 }: LinkCardProps) {
@@ -182,14 +184,13 @@ export function LinkCard({
   const hiddenTagCount = Math.max(tags.length - visibleTagCount, 0);
   const visibleTags = tags.slice(0, visibleTagCount);
   const cardClassName = cn(
-    "group/link-card grid h-[var(--link-row-height)] w-[var(--link-card-width)] grid-cols-[var(--link-card-logo-column)_minmax(0,1fr)] gap-x-[var(--space-16)] rounded-[var(--radius-12)] p-[var(--space-20)] text-[var(--content-primary)] outline-none transition-[background-color] duration-150",
+    "link-card-shell group/link-card relative grid h-[var(--link-row-height)] w-[var(--link-card-width)] grid-cols-[var(--link-card-logo-column)_minmax(0,1fr)] gap-x-[var(--space-16)] rounded-[var(--radius-12)] p-[var(--space-20)] text-[var(--content-primary)] outline-none transition-[background-color] duration-150",
     "bg-transparent",
     "hover:bg-[var(--panel-surface)] active:bg-[var(--control-surface)]",
     "focus-visible:bg-[var(--panel-surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]",
     "data-[state=hover]:bg-[var(--panel-surface)]",
     "data-[state=pressed]:bg-[var(--control-surface)]",
     "data-[state=focused]:bg-[var(--panel-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring-strong)]",
-    "data-[state=active]:border-4 data-[state=active]:border-white/40 data-[state=active]:bg-[var(--white)] data-[state=active]:p-[var(--space-16)]",
     className
   );
 
@@ -201,6 +202,11 @@ export function LinkCard({
       aria-current={visualState === "active" ? "true" : undefined}
       className={cardClassName}
     >
+      {favorite ? (
+        <span aria-hidden="true" className="favorite-icon-filled pointer-events-none absolute right-[var(--space-24)] top-[var(--space-20)] z-10 inline-flex size-[var(--space-20)] items-center justify-center text-[var(--favorite-accent)]">
+          <Icon icon={Icons.bookmark} size={20} strokeWidth={2} />
+        </span>
+      ) : null}
       <LinkLogo
         src={faviconSrc}
         alt={faviconAlt ?? ""}

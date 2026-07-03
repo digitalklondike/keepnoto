@@ -157,6 +157,7 @@
   --space-32: 32px;
   --space-40: 40px;
   --space-48: 48px;
+  --radius-4: 4px;
   --radius-8: 8px;
   --radius-10: 10px;
   --radius-12: 12px;
@@ -178,7 +179,7 @@
   --content-primary: var(--palette-text-primary);
   --content-muted: var(--neutral-600);
   --border-soft: var(--palette-border);
-  --divider-subtle: color-mix(in srgb, var(--palette-border) 62%, transparent);
+  --divider-subtle: color-mix(in srgb, var(--neutral-400) 74%, transparent);
   --panel-surface: rgb(255 255 255 / 50%);
   --control-surface: rgb(255 255 255 / 60%);
   --white: var(--palette-surface);
@@ -194,6 +195,8 @@
   --workbench-panel-soft: rgb(255 255 255 / 52%);
   --switch-knob: var(--palette-primary);
   --avatar-overlay: rgb(29 29 29 / 20%);
+  --favorite-accent: var(--primary-500);
+  --link-card-active-ring: rgb(255 255 255 / 40%);
   --favicon-1: var(--palette-primary);
   --favicon-2: var(--palette-accent-orange);
   --favicon-3: var(--palette-accent-green);
@@ -356,6 +359,16 @@
     letter-spacing: 0;
   }
 
+
+  .link-card-shell[data-state="active"] {
+    background: var(--white);
+    box-shadow: inset 0 0 0 4px var(--link-card-active-ring);
+  }
+
+
+  .favorite-icon-filled svg * {
+    fill: currentColor;
+  }
   .type-label {
     font-size: 12px;
     font-weight: 600;
