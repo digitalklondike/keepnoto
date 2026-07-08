@@ -6,6 +6,11 @@ const preview = {
   title: "Supabase Docs",
   description: "Production-ready backend for app developers.\nPostgres, Auth, Storage and Edge Functions.",
   url: "supabase.com/docs/guides/auth",
+  previewImageSrc: "/mock-sites/supabase-preview.svg",
+  previewImageAlt: "Supabase Docs preview",
+  logoSrc: "/mock-sites/supabase-logo.svg",
+  logoAlt: "Supabase logo",
+  logoFallback: "supabase.com",
   externalHref: "https://supabase.com/docs/guides/auth",
 };
 

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E1820"/>
+      <stop offset="0.55" stop-color="#123242"/>
+      <stop offset="1" stop-color="#091016"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(816 280) rotate(142) scale(430 260)">
+      <stop stop-color="#61DAFB" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#61DAFB" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" rx="48" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <text x="96" y="164" fill="#93E8FC" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">REACT REFERENCE</text>
+  <text x="96" y="254" fill="#F8FCFF" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">Cache patterns</text>
+  <text x="96" y="338" fill="#F8FCFF" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">for modern apps</text>
+  <text x="96" y="414" fill="#BED4DD" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="500">Official API guidance for server rendering and data reuse.</text>
+  <g transform="translate(678 112)">
+    <rect width="424" height="406" rx="42" fill="#0B171E" fill-opacity="0.78" stroke="#8AE9FF" stroke-opacity="0.24" stroke-width="2"/>
+    <ellipse cx="212" cy="202" rx="156" ry="58" stroke="#61DAFB" stroke-opacity="0.82" stroke-width="18"/>
+    <ellipse cx="212" cy="202" rx="156" ry="58" stroke="#61DAFB" stroke-opacity="0.82" stroke-width="18" transform="rotate(60 212 202)"/>
+    <ellipse cx="212" cy="202" rx="156" ry="58" stroke="#61DAFB" stroke-opacity="0.82" stroke-width="18" transform="rotate(120 212 202)"/>
+    <circle cx="212" cy="202" r="28" fill="#61DAFB"/>
+    <rect x="74" y="330" width="118" height="22" rx="11" fill="#E9FBFF" fill-opacity="0.7"/>
+    <rect x="210" y="330" width="72" height="22" rx="11" fill="#E9FBFF" fill-opacity="0.28"/>
+  </g>
+</svg>

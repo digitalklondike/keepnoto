@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2C1810"/>
+      <stop offset="0.55" stop-color="#663C24"/>
+      <stop offset="1" stop-color="#180D08"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(840 270) rotate(140) scale(420 250)">
+      <stop stop-color="#FFB36C" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#FFB36C" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" rx="48" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <text x="96" y="164" fill="#FFD1A8" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">FRONTEND CHECKLIST</text>
+  <text x="96" y="254" fill="#FFF9F2" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">Ship cleaner</text>
+  <text x="96" y="338" fill="#FFF9F2" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">frontend work</text>
+  <text x="96" y="414" fill="#E8CDB8" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="500">A practical quality pass for UX, metadata, access, and performance.</text>
+  <g transform="translate(676 104)">
+    <rect width="430" height="422" rx="42" fill="#FFF8EF" fill-opacity="0.12" stroke="#FFE7CF" stroke-opacity="0.26" stroke-width="2"/>
+    <rect x="60" y="70" width="310" height="42" rx="21" fill="#FFF8EF" fill-opacity="0.72"/>
+    <g stroke="#FFF8EF" stroke-width="18" stroke-linecap="round" opacity="0.86">
+      <path d="M94 178h54"/>
+      <path d="M94 244h54"/>
+      <path d="M94 310h54"/>
+    </g>
+    <g fill="#FFB36C">
+      <circle cx="254" cy="178" r="24"/>
+      <circle cx="254" cy="244" r="24"/>
+      <circle cx="254" cy="310" r="24"/>
+    </g>
+    <g stroke="#FFF8EF" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+      <path d="m243 178 8 8 18-22"/>
+      <path d="m243 244 8 8 18-22"/>
+      <path d="m243 310 8 8 18-22"/>
+    </g>
+    <rect x="60" y="366" width="148" height="24" rx="12" fill="#FFF8EF" fill-opacity="0.32"/>
+    <rect x="224" y="366" width="86" height="24" rx="12" fill="#FFF8EF" fill-opacity="0.2"/>
+  </g>
+</svg>

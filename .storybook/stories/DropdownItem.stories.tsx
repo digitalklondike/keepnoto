@@ -38,14 +38,14 @@ type Story = StoryObj<typeof meta>;
 export const States: Story = {
   render: () => (
     <div className="min-h-screen p-[var(--space-32)] text-[var(--content-primary)]">
-      <div className="flex w-[520px] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border border-[var(--border-soft)] bg-[var(--workbench-panel)] p-[var(--space-24)] shadow-[var(--shadow-card)] backdrop-blur-md">
+      <div className="flex w-[520px] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border border-[var(--border-soft)] bg-[var(--workbench-panel)] p-[var(--space-24)] shadow-[var(--shadow-card)] backdrop-blur-[var(--blur-panel)]">
         {variants.map((variant) => (
           <section key={variant.label} className="flex flex-col gap-[var(--space-8)]">
             <h3 className="type-12-semibold text-[var(--content-muted)]">{variant.label}</h3>
             <div className="flex w-[360px] flex-col gap-[var(--space-4)] rounded-[var(--radius-16)] bg-[var(--workbench-panel-soft)] p-[var(--space-8)]">
               {states.map((state) => (
                 <div key={`${variant.label}-${state.label}`} className="flex items-center gap-[var(--space-12)]">
-                  <span className="w-16 shrink-0 type-12 text-[var(--content-muted)]">{state.label}</span>
+                  <span className="w-[var(--skeleton-chip-width-sm)] shrink-0 type-12 text-[var(--content-muted)]">{state.label}</span>
                   <DropdownMenuItem
                     renderAs="div"
                     icon={variant.icon}

@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17141D"/>
+      <stop offset="0.54" stop-color="#2E2638"/>
+      <stop offset="1" stop-color="#0E0C12"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(820 256) rotate(142) scale(430 260)">
+      <stop stop-color="#B58AF0" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#B58AF0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card" x1="690" y1="132" x2="1010" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#7C5BB0"/>
+      <stop offset="1" stop-color="#2C2138"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" rx="48" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <text x="96" y="164" fill="#D7C3F5" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">LINEAR CHANGELOG</text>
+  <text x="96" y="254" fill="#FFFDFB" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">Design system</text>
+  <text x="96" y="338" fill="#FFFDFB" font-family="Inter, Arial, sans-serif" font-size="78" font-weight="800">updates</text>
+  <text x="96" y="414" fill="#D8CFDD" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="500">Calm product surfaces, sharp workflows, and focused UI craft.</text>
+  <g transform="translate(682 106)">
+    <rect width="420" height="420" rx="44" fill="url(#card)" stroke="#F5EEFF" stroke-opacity="0.18" stroke-width="2"/>
+    <circle cx="128" cy="126" r="52" fill="#F7F1FF" fill-opacity="0.16"/>
+    <path d="M98 126h60M128 96v60" stroke="#F7F1FF" stroke-width="18" stroke-linecap="round"/>
+    <rect x="72" y="218" width="276" height="22" rx="11" fill="#F7F1FF" fill-opacity="0.78"/>
+    <rect x="72" y="268" width="228" height="18" rx="9" fill="#F7F1FF" fill-opacity="0.42"/>
+    <rect x="72" y="306" width="176" height="18" rx="9" fill="#F7F1FF" fill-opacity="0.28"/>
+    <rect x="72" y="356" width="98" height="24" rx="12" fill="#FFFDFB" fill-opacity="0.22"/>
+    <rect x="186" y="356" width="76" height="24" rx="12" fill="#FFFDFB" fill-opacity="0.14"/>
+  </g>
+</svg>

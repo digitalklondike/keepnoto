@@ -1,0 +1,12 @@
+export const FLOATING_SIDE_OFFSET = 8;
+export const FLOATING_COLLISION_PADDING = 8;
+export const TOOLTIP_DELAY_MS = 250;
+export const TOOLTIP_INTERACTIVE_CLOSE_DELAY_MS = 120;
+
+export const COMPACT_PREVIEW_MIN_ASPECT_RATIO = 0.75;
+export const COMPACT_PREVIEW_MAX_ASPECT_RATIO = 1.35;
+
+export const TAG_MAX_LENGTH = 18;
+export const FILTER_TAB_ROW_WIDTH = 536;
+export const FILTER_TAB_GAP = 8;
+export const FILTER_TAB_MORE_WIDTH = 88;

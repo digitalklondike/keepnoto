@@ -10,7 +10,8 @@ import {
   DropdownMenuSeparator as BaseDropdownMenuSeparator,
   DropdownMenuTrigger as BaseDropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Icon } from "@/components/keepnoto/product-components";
+import { FLOATING_COLLISION_PADDING, FLOATING_SIDE_OFFSET } from "@/components/keepnoto/design-constants";
+import { Icon, Icons } from "@/components/keepnoto/product-components";
 import { cn } from "@/lib/utils";
 
 export type DropdownMenuItemTone = "default" | "danger";
@@ -21,6 +22,7 @@ export type DropdownMenuItemProps = React.ComponentProps<typeof BaseDropdownMenu
   icon?: IconSvgElement;
   endLabel?: string;
   shortcut?: string;
+  selected?: boolean;
   tone?: DropdownMenuItemTone;
   visualState?: DropdownMenuItemVisualState;
   renderAs?: DropdownMenuItemRenderAs;
@@ -29,13 +31,13 @@ export type DropdownMenuItemProps = React.ComponentProps<typeof BaseDropdownMenu
 const dropdownMenuItemToneClassName: Record<DropdownMenuItemTone, string> = {
   default: cn(
     "!text-[var(--content-primary)] focus:!text-[var(--content-primary)] data-highlighted:!text-[var(--content-primary)] focus:[&_*]:!text-inherit data-highlighted:[&_*]:!text-inherit",
-    "hover:bg-[var(--state-hover)] focus:bg-[var(--state-hover)] data-highlighted:bg-[var(--state-hover)]",
+    "hover:bg-[var(--state-hover)] data-highlighted:bg-[var(--state-hover)]",
     "data-[visual-state=hover]:bg-[var(--state-hover)] data-[visual-state=active]:bg-[var(--state-hover)]",
     "active:bg-[var(--state-pressed)] data-[visual-state=pressed]:bg-[var(--state-pressed)]"
   ),
   danger: cn(
     "!text-[var(--danger-dropdown)] focus:!text-[var(--danger-dropdown)] data-highlighted:!text-[var(--danger-dropdown)] focus:[&_*]:!text-inherit data-highlighted:[&_*]:!text-inherit",
-    "hover:bg-[var(--state-danger-hover)] focus:bg-[var(--state-danger-hover)] data-highlighted:bg-[var(--state-danger-hover)]",
+    "hover:bg-[var(--state-danger-hover)] data-highlighted:bg-[var(--state-danger-hover)]",
     "data-[visual-state=hover]:bg-[var(--state-danger-hover)] data-[visual-state=active]:bg-[var(--state-danger-hover)]",
     "active:bg-[var(--state-danger-pressed)] data-[visual-state=pressed]:bg-[var(--state-danger-pressed)]"
   ),
@@ -50,6 +52,7 @@ export function DropdownMenuItem({
   icon,
   endLabel,
   shortcut,
+  selected,
   tone = "default",
   visualState = "default",
   renderAs = "menuitem",
@@ -67,6 +70,7 @@ export function DropdownMenuItem({
           {rightLabel}
         </span>
       ) : null}
+      {selected ? <Icon icon={Icons.check} size={16} strokeWidth={2} className="shrink-0 !text-current" /> : null}
     </>
   );
   const itemClassName = cn(dropdownMenuItemClassName, dropdownMenuItemToneClassName[tone], className);
@@ -83,6 +87,7 @@ export function DropdownMenuItem({
         data-disabled={disabled ? "" : undefined}
         data-highlighted={highlighted ? "" : undefined}
         data-visual-state={visualState}
+        data-selected={selected ? "" : undefined}
         className={itemClassName}
       >
         {content}
@@ -95,6 +100,7 @@ export function DropdownMenuItem({
       {...props}
       variant={tone === "danger" ? "destructive" : "default"}
       data-visual-state={visualState}
+      data-selected={selected ? "" : undefined}
       className={itemClassName}
     >
       {content}
@@ -111,7 +117,7 @@ export function DropdownMenuContent({ className, contentClassName, ...props }: D
     <BaseDropdownMenuContent
       {...props}
       className={cn(
-        "w-[var(--dropdown-width)] rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-md",
+        "flex w-[var(--dropdown-width)] flex-col gap-[var(--space-4)] rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-[var(--blur-panel)]",
         contentClassName,
         className
       )}
@@ -149,9 +155,9 @@ function DropdownMenuRoot({
   children,
   align = "end",
   side = "bottom",
-  sideOffset = 8,
+  sideOffset = FLOATING_SIDE_OFFSET,
   collisionAvoidance = { side: "flip", align: "flip", fallbackAxisSide: "none" },
-  collisionPadding = 8,
+  collisionPadding = FLOATING_COLLISION_PADDING,
   collisionBoundary,
   contentClassName,
   open,
@@ -182,6 +188,7 @@ function DropdownMenuRoot({
   const triggerProps = trigger.props as Record<string, unknown>;
   const triggerWithState = React.cloneElement(trigger, {
     "aria-expanded": isOpen,
+    "data-popup-open": isOpen ? "" : undefined,
     ...(triggerProps.hasMenu ? { open: isOpen } : {}),
   });
 

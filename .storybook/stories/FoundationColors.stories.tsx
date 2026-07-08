@@ -13,6 +13,7 @@ const colors = [
   ["Primary End", "var(--accent-end)", "Action gradient end"],
   ["Danger", "var(--danger)", "Delete action text"],
   ["Tag Fill", "var(--tag-fill)", "Saved-link and metadata tag chips"],
+  ["Saved Reason Ink", "var(--saved-reason-ink)", "Handwritten saved-reason annotation"],
   ["Add Tag Fill", "var(--add-tag-fill)", "Dashed add-tag chip background"],
 ] as const;
 
@@ -20,21 +21,21 @@ const meta = {
   title: "Foundation/Colors",
   parameters: { layout: "fullscreen" },
   render: () => (
-    <main className="min-h-dvh p-8 text-[var(--content-primary)]">
-      <section className="mx-auto flex max-w-5xl flex-col gap-6">
+    <main className="min-h-dvh p-[var(--space-32)] text-[var(--content-primary)]">
+      <section className="mx-auto flex max-w-5xl flex-col gap-[var(--space-24)]">
         <div>
-          <h1 className="text-[28px] font-medium leading-8">Color tokens</h1>
-          <p className="mt-2 text-base text-[var(--content-muted)]">
+          <h1 className="type-title">Color tokens</h1>
+          <p className="mt-[var(--space-8)] type-16 text-[var(--content-muted)]">
             Tokens used to match the selected Keepnoto library frame.
           </p>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-[var(--space-16)] sm:grid-cols-2 lg:grid-cols-3">
           {colors.map(([name, value, description]) => (
-            <article key={name} className="rounded-[var(--radius-16)] bg-[var(--panel-surface)] p-4 backdrop-blur-[1px]">
+            <article key={name} className="rounded-[var(--radius-16)] bg-[var(--panel-surface)] p-[var(--space-16)] backdrop-blur-[var(--blur-soft)]">
               <div className="h-20 rounded-[var(--radius-12)] border border-[var(--border-soft)]" style={{ background: value }} />
-              <h2 className="mt-4 text-base font-semibold">{name}</h2>
-              <p className="mt-1 text-sm text-[var(--content-muted)]">{description}</p>
-              <code className="mt-3 inline-flex rounded-[var(--radius-10)] bg-[var(--control-surface)] px-2 py-1 text-xs text-[var(--content-muted)]">
+              <h2 className="mt-[var(--space-16)] type-16-semibold">{name}</h2>
+              <p className="mt-[var(--space-4)] type-12 text-[var(--content-muted)]">{description}</p>
+              <code className="mt-[var(--space-12)] inline-flex rounded-[var(--radius-10)] bg-[var(--control-surface)] px-[var(--space-8)] py-[var(--space-4)] type-12 text-[var(--content-muted)]">
                 {value}
               </code>
             </article>

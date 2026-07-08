@@ -43,39 +43,25 @@ After every task, report which checks were run. If a check was not run, explain 
 Use Windows-safe commands in reports and instructions because this project is developed on Windows / VS Code PowerShell. Prefer commands such as `npm.cmd run lint`, `npm.cmd run build`, `npm.cmd run storybook`, and `npm.cmd run build-storybook`.
 <!-- END:keepnoto-qa-rules -->
 <!-- BEGIN:keepnoto-design-rules -->
-# Skill Usage Rules
+# Design Skill Usage
 
 Do not change app code when the task is only to create or update agent instructions or skills.
 
-For any UI, layout, component, or page work, read `.agents/skills/keepnoto-visual-design/SKILL.md` before making changes. This skill is the product-specific source of truth for Keepnoto UI style.
+Keepnoto project docs, tokens, components, layout direction, and Storybook are the design system source of truth. Never let a skill replace Keepnoto colors, typography, spacing, components, layout, product decisions, or tokens unless explicitly requested.
 
-Use Impeccable and Taste skills as general visual quality layers:
+Before UI work, read `DESIGN_DIRECTION.md`, `UI_ARCHITECTURE.md`, and `.agents/skills/keepnoto-visual-design/SKILL.md`.
 
-- `.agents/skills/impeccable/SKILL.md`
-- `.agents/skills/design-taste-frontend/SKILL.md`
-- `.agents/skills/gpt-taste/SKILL.md`
+Use design skills by role, not all at once for normal UI tasks:
 
-Use these for visual polish, hierarchy, spacing, typography, accessibility, and interaction quality. For redesigning an already existing screen, also use `.agents/skills/redesign-existing-projects/SKILL.md`.
+- Impeccable: primary UI critique and polish layer for hierarchy, layout, spacing, visual quality, and interaction clarity.
+- Taste Skill: anti-slop frontend check only; use it to detect generic AI-looking patterns, not to create a new design direction.
+- Emil Kowalski: motion only; use for animation, transitions, easing, hover states, enter/exit states, and animation review.
 
-Do not blindly follow external or general design skill advice when it conflicts with Keepnoto's visual direction. Keepnoto's product direction always wins over generic advice.
+Prefer small targeted improvements over full redesigns. When building new UI, use existing Keepnoto tokens and components first. If a missing reusable pattern is needed, document it and add it to the design system before using it in product screens.
 
-Before finishing UI work, run a visual review pass for:
+Keep Storybook components and design tokens as the implementation source of truth.
 
-- Visual hierarchy
-- Spacing
-- Typography
-- Contrast
-- Responsiveness
-- Empty states
-- Hover and focus states
-- Whether the screen feels like Keepnoto, not generic SaaS
+Before finishing UI work, run a visual review pass for hierarchy, spacing, typography, contrast, responsiveness, empty states, hover/focus states, and whether the screen feels like Keepnoto rather than generic SaaS.
 
-After each task, report:
-
-- Changed files
-- What was done
-- How to test
-- Checks run
-- Checks not run and why
-- Risks or follow-up questions
+After each task, report changed files, what was done, how to test, checks run, checks not run and why, and risks or follow-up questions.
 <!-- END:keepnoto-design-rules -->

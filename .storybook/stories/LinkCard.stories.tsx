@@ -9,15 +9,27 @@ const sampleLink = {
   description: "The cleanest explanation of magic links and OAuth providers. The session refresh flow finally clicked.",
   tags: ["auth", "docs", "supabase"],
   savedAt: "2 days ago",
+  faviconSrc: "/mock-sites/supabase-logo.svg",
   faviconFallback: "S",
   faviconColor: "var(--favicon-1)",
 };
 
 const crowdedLink = {
   ...sampleLink,
-  tags: ["auth", "docs", "supabase", "oauth", "magic links", "sessions", "security"],
+  tags: ["auth", "docs", "very-long-product-research-tag", "oauth", "magic links", "sessions", "security"],
 };
 
+const shortReasonLink = {
+  ...sampleLink,
+  description: "Useful auth reference for the weekend build.",
+};
+
+const longReasonLink = {
+  ...sampleLink,
+  title: "OAuth Session Refresh Notes",
+  description:
+    "The clearest explanation I found for magic links, refresh sessions, and the small edge cases I always forget when wiring auth into side projects.",
+};
 const states: Array<{ label: string; visualState: LinkCardVisualState; favorite?: boolean }> = [
   { label: "Default", visualState: "default" },
   { label: "Hover", visualState: "hover" },
@@ -60,3 +72,14 @@ export const ManyTags: Story = {
     </div>
   ),
 };
+export const ReasonLengths: Story = {
+  render: () => (
+    <div className="bg-transparent p-[var(--space-32)] text-[var(--content-primary)]">
+      <div className="grid gap-[var(--space-16)]">
+        <LinkCard {...shortReasonLink} />
+        <LinkCard {...longReasonLink} />
+      </div>
+    </div>
+  ),
+};
+

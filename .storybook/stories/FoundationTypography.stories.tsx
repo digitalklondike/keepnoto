@@ -49,7 +49,7 @@ const meta = {
           </p>
         </header>
 
-        <div className="overflow-hidden rounded-[var(--radius-16)] bg-[var(--panel-surface)] backdrop-blur-[1px]">
+        <div className="overflow-hidden rounded-[var(--radius-16)] bg-[var(--panel-surface)] backdrop-blur-[var(--blur-soft)]">
           <div className="grid grid-cols-[160px_180px_160px_1fr] gap-[var(--space-16)] border-b border-[var(--border-soft)] px-[var(--space-24)] py-[var(--space-16)] type-12 text-[var(--content-muted)]">
             <span>Name</span>
             <span>Class</span>

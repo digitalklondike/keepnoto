@@ -6,12 +6,12 @@ const meta = {
     layout: "centered",
   },
   render: () => (
-    <main className="max-w-sm rounded-lg border border-neutral-200 bg-white p-6 text-neutral-900 shadow-sm">
-      <p className="text-sm font-medium uppercase tracking-wide text-neutral-500">
+    <main className="max-w-sm rounded-[var(--radius-16)] border border-[var(--border-soft)] bg-[var(--panel-surface)] p-[var(--space-24)] text-[var(--content-primary)] shadow-[var(--shadow-soft)]">
+      <p className="type-12-semibold uppercase text-[var(--content-muted)]">
         Keepnoto Storybook
       </p>
-      <h1 className="mt-2 text-2xl font-semibold">Ready for design system work</h1>
-      <p className="mt-3 text-sm leading-6 text-neutral-600">
+      <h1 className="mt-[var(--space-8)] type-title">Ready for design system work</h1>
+      <p className="mt-[var(--space-12)] type-16 text-[var(--content-muted)]">
         This placeholder confirms Storybook loads the app global styles. Replace it when real shared components are added.
       </p>
     </main>

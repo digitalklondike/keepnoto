@@ -29,17 +29,17 @@ type Story = StoryObj<typeof meta>;
 
 export const States: Story = {
   render: () => (
-    <div className="bg-transparent p-6 text-[var(--content-primary)]">
-      <div className="grid grid-cols-[160px_repeat(5,176px)] gap-3">
+    <div className="bg-transparent p-[var(--space-24)] text-[var(--content-primary)]">
+      <div className="grid grid-cols-[160px_repeat(5,176px)] gap-[var(--space-12)]">
         <div />
         {states.map((state) => (
-          <div key={state.label} className="text-xs font-medium text-[var(--content-muted)]">
+          <div key={state.label} className="type-12-semibold text-[var(--content-muted)]">
             {state.label}
           </div>
         ))}
         {tones.map((tone) => (
           <div key={tone.tone} className="contents">
-            <div className="flex h-12 items-center text-sm font-semibold text-[var(--content-primary)]">
+            <div className="flex h-[var(--size-48)] items-center type-12-semibold text-[var(--content-primary)]">
               {tone.label}
             </div>
             {states.map((state) => (
@@ -48,7 +48,7 @@ export const States: Story = {
                 tone={tone.tone}
                 visualState={state.visualState}
                 disabled={state.disabled}
-                className="h-12 w-40"
+                className="h-[var(--size-48)] w-[var(--save-button-width)]"
               >
                 {tone.text}
               </Button>
