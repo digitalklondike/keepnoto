@@ -44,7 +44,7 @@ const dropdownMenuItemToneClassName: Record<DropdownMenuItemTone, string> = {
 };
 
 const dropdownMenuItemClassName = cn(
-  "flex h-[var(--size-48)] w-full cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 outline-none transition-[background-color,color,opacity] duration-150",
+  "flex h-[var(--size-48)] w-full cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 outline-none transition-[background-color,color,opacity] duration-150 ease-out",
   "data-disabled:pointer-events-none data-disabled:opacity-45"
 );
 
@@ -117,7 +117,7 @@ export function DropdownMenuContent({ className, contentClassName, ...props }: D
     <BaseDropdownMenuContent
       {...props}
       className={cn(
-        "flex w-[var(--dropdown-width)] flex-col gap-[var(--space-4)] rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-[var(--blur-panel)]",
+        "flex w-[var(--dropdown-width)] origin-(--transform-origin) flex-col gap-[var(--space-4)] rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-[var(--blur-panel)] transition-[opacity,transform] duration-200 ease-out data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0",
         contentClassName,
         className
       )}

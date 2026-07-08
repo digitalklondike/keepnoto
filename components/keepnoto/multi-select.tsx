@@ -360,7 +360,7 @@ export function MultiSelect({
         data-open={open ? "true" : undefined}
         data-disabled={disabled ? "true" : undefined}
         className={cn(
-          "group/multi-select flex h-[var(--size-48)] w-full items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--panel-surface)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,box-shadow,opacity]",
+          "group/multi-select flex h-[var(--size-48)] w-full items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--panel-surface)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,box-shadow,opacity] duration-150 ease-out",
           "hover:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] data-[open=true]:bg-[var(--control-surface)] data-[open=true]:ring-2 data-[open=true]:ring-[var(--focus-ring)]",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-45"
         )}
@@ -375,7 +375,7 @@ export function MultiSelect({
               <SelectedTagLabel label={option.label} />
               <button
                 aria-label={`Remove ${option.label}`}
-                className="grid size-[var(--space-16)] shrink-0 place-items-center rounded-[var(--radius-round)] p-[var(--space-0)] leading-none text-[var(--content-muted)] transition-colors hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                className="grid size-[var(--space-16)] shrink-0 place-items-center rounded-[var(--radius-round)] p-[var(--space-0)] leading-none text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                 onClick={() => removeValue(option.value)}
                 type="button"
               >
@@ -413,7 +413,7 @@ export function MultiSelect({
         </div>
         <button
           aria-label="Open tag dropdown"
-          className="inline-flex size-[var(--size-24)] shrink-0 items-center justify-center rounded-[var(--radius-round)] text-[var(--content-muted)] transition-colors hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          className="inline-flex size-[var(--size-24)] shrink-0 items-center justify-center rounded-[var(--radius-round)] text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           disabled={disabled}
           onClick={focusSelectInput}
           onMouseDown={(event) => event.preventDefault()}
@@ -423,7 +423,7 @@ export function MultiSelect({
             icon={Icons.chevronDown}
             size={20}
             strokeWidth={1.8}
-            className={cn("transition-transform", open && "rotate-180")}
+            className={cn("transition-transform duration-150 ease-out", open && "rotate-180")}
           />
         </button>
       </div>
@@ -456,7 +456,7 @@ export function MultiSelect({
               side="bottom"
               sideOffset={FLOATING_SIDE_OFFSET}
             >
-              <BasePopover.Popup ref={popupRef} className="relative max-h-[var(--dropdown-max-height)] w-(--anchor-width) min-w-[var(--dropdown-width)] overflow-hidden rounded-[var(--radius-20)] bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] backdrop-blur-[var(--blur-panel)]">
+              <BasePopover.Popup ref={popupRef} className="relative max-h-[var(--dropdown-max-height)] w-(--anchor-width) min-w-[var(--dropdown-width)] origin-(--transform-origin) overflow-hidden rounded-[var(--radius-20)] bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] backdrop-blur-[var(--blur-panel)] transition-[opacity,transform] duration-200 ease-out data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0">
                 <div
                   ref={optionsScrollRef}
                   id={listboxId}
@@ -471,7 +471,7 @@ export function MultiSelect({
               <button
                 key={option.value}
                 aria-selected={selected}
-                className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--content-primary)] outline-none transition-[background-color,opacity] hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
+                className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--content-primary)] outline-none transition-[background-color,opacity] duration-150 ease-out hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
                 onClick={() => setSelected(option.value, selected)}
                 role="option"
                 type="button"
@@ -483,7 +483,7 @@ export function MultiSelect({
           })}
           {canCreate ? (
             <button
-              className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--accent-start)] outline-none transition-[background-color,opacity] hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
+              className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--accent-start)] outline-none transition-[background-color,opacity] duration-150 ease-out hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
               onClick={createOption}
               type="button"
             >

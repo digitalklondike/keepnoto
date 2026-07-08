@@ -194,12 +194,12 @@ export function LinkCard({
   const hiddenTagCount = Math.max(tags.length - visibleTagCount, 0);
   const visibleTags = tags.slice(0, visibleTagCount);
   const cardClassName = cn(
-    "link-card-shell group/link-card relative grid w-full grid-cols-[var(--link-card-logo-column)_minmax(0,1fr)] items-start gap-x-[var(--space-16)] rounded-[var(--radius-24)] p-[var(--space-20)] text-[var(--content-primary)] outline-none transition-[background-color,box-shadow] duration-150",
+    "link-card-shell group/link-card relative grid w-full grid-cols-[var(--link-card-logo-column)_minmax(0,1fr)] items-start gap-x-[var(--space-16)] rounded-[var(--radius-24)] p-[var(--space-20)] text-[var(--content-primary)] outline-none transition-[background-color,box-shadow,transform] duration-150 ease-out",
     "bg-transparent",
-    "hover:bg-[var(--panel-surface)] active:bg-[var(--control-surface)]",
+    "hover:bg-[var(--panel-surface)] active:scale-[0.995] active:bg-[var(--control-surface)]",
     "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]",
     "data-[state=hover]:bg-[var(--panel-surface)]",
-    "data-[state=pressed]:bg-[var(--control-surface)]",
+    "data-[state=pressed]:scale-[0.995] data-[state=pressed]:bg-[var(--control-surface)]",
     "data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring-strong)]",
     className
   );

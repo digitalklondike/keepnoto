@@ -1117,7 +1117,7 @@ export default function Home() {
                 <a
                   key={target.label}
                   aria-label={`Share on ${target.label}`}
-                  className="inline-flex size-[var(--size-48)] shrink-0 items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--content-primary)] transition-[background-color,color,opacity] hover:bg-[var(--card-control-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                  className="inline-flex size-[var(--size-48)] shrink-0 items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--content-primary)] transition-[background-color,color,opacity,transform] duration-150 ease-out hover:bg-[var(--card-control-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
                   href={target.href}
                   rel={target.href.startsWith("mailto:") ? undefined : "noreferrer"}
                   target={target.href.startsWith("mailto:") ? undefined : "_blank"}
@@ -1162,7 +1162,7 @@ export default function Home() {
                   collisionBoundary={libraryBoundary ?? undefined}
                   trigger={
                     <button
-                      className="inline-flex h-[var(--size-24)] items-center gap-[var(--space-8)] rounded-[var(--radius-8)] px-[var(--space-4)] type-16 text-[var(--content-muted)] transition-colors hover:text-[var(--content-primary)] data-[popup-open]:text-[var(--content-primary)]"
+                      className="inline-flex h-[var(--size-24)] items-center gap-[var(--space-8)] rounded-[var(--radius-8)] px-[var(--space-4)] type-16 text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] data-[popup-open]:text-[var(--content-primary)]"
                       type="button"
                     >
                       {activeSortOption.label}
@@ -1258,7 +1258,7 @@ export default function Home() {
                       ))}
                     </div>
                   ) : (
-                    <div className="flex h-full min-h-[calc(var(--size-48)*6)] flex-col items-center justify-center gap-[var(--space-24)] px-[var(--space-24)] py-[var(--space-48)] text-center">
+                    <div className="flex h-full min-h-[calc(var(--size-48)*6)] flex-col items-center justify-center gap-[var(--space-24)] px-[var(--space-24)] py-[var(--space-48)] text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
                       <svg
                         aria-hidden="true"
                         className="h-[calc(var(--size-48)*4+var(--space-24))] w-[calc(var(--size-48)*4+var(--space-24))] overflow-visible"
