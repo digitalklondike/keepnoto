@@ -1,5 +1,5 @@
-﻿import type { Metadata } from "next";
-import { Caveat, Inter } from "next/font/google";
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,11 +8,6 @@ const inter = Inter({
   display: "swap",
 });
 
-const caveat = Caveat({
-  variable: "--font-caveat",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Keepnoto",
@@ -27,7 +22,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${caveat.variable} h-full antialiased`}
+      className={`${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

@@ -18,6 +18,7 @@ import {
   SelectTrigger as BaseSelectTrigger,
   SelectValue as BaseSelectValue,
 } from "@/components/ui/select";
+import { FLOATING_COLLISION_PADDING, FLOATING_SIDE_OFFSET } from "@/components/keepnoto/design-constants";
 import { Icon, Icons } from "@/components/keepnoto/product-components";
 import { cn } from "@/lib/utils";
 
@@ -27,9 +28,9 @@ export type SelectTriggerProps = React.ComponentProps<typeof BaseSelectTrigger> 
 };
 
 const selectTriggerClassName = cn(
-  "group/select-trigger flex h-[var(--size-48)] min-w-[12rem] items-center justify-between gap-[var(--space-12)] rounded-[var(--radius-round)] px-[var(--space-16)] type-16 text-[var(--content-primary)] backdrop-blur-[1px] transition-[background-color,box-shadow,opacity,transform]",
+  "group/select-trigger flex h-[var(--size-48)] min-w-[var(--select-min-width)] items-center justify-between gap-[var(--space-12)] rounded-[var(--radius-round)] px-[var(--space-16)] type-16 text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,box-shadow,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "bg-[var(--panel-surface)] hover:bg-[var(--control-surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] active:scale-[0.99] active:bg-[var(--control-surface)]",
-  "data-[state=hover]:bg-[var(--control-surface)] data-[state=focused]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)] data-[state=pressed]:scale-[0.99] data-[state=pressed]:bg-[var(--control-surface)] data-[state=open]:bg-[var(--control-surface)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--focus-ring)]",
+  "data-[state=hover]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)] data-[state=pressed]:scale-[0.99] data-[state=pressed]:bg-[var(--control-surface)] data-[state=open]:bg-[var(--control-surface)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--focus-ring)]",
   "disabled:pointer-events-none disabled:opacity-45"
 );
 
@@ -51,7 +52,7 @@ export function SelectTrigger({ visualState = "default", className, children, ..
               icon={Icons.chevronDown}
               size={20}
               strokeWidth={1.8}
-              className={cn("shrink-0 transition-transform duration-150", state.open && "rotate-180")}
+              className={cn("shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]", state.open && "rotate-180")}
             />
           </button>
         );
@@ -88,9 +89,9 @@ export function SelectContent({
   contentClassName,
   align = "start",
   side = "bottom",
-  sideOffset = 8,
+  sideOffset = FLOATING_SIDE_OFFSET,
   collisionAvoidance = { side: "flip", align: "flip", fallbackAxisSide: "none" },
-  collisionPadding = 8,
+  collisionPadding = FLOATING_COLLISION_PADDING,
   collisionBoundary,
   ...props
 }: SelectContentProps) {
@@ -106,7 +107,7 @@ export function SelectContent({
       <BaseSelectContent
         {...props}
         className={cn(
-          "w-(--anchor-width) min-w-[var(--dropdown-width)] rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-md",
+          "w-(--anchor-width) min-w-[var(--dropdown-width)] origin-(--transform-origin) rounded-[var(--radius-20)] !border-0 bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] !shadow-[var(--shadow-panel)] !ring-0 backdrop-blur-[var(--blur-panel)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0",
           contentClassName,
           className
         )}
@@ -127,7 +128,7 @@ export type SelectItemProps = React.ComponentProps<typeof BaseSelectItem> & {
 };
 
 const selectItemClassName = cn(
-  "group/select-item flex h-[var(--size-48)] w-full cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 outline-none transition-[background-color,color,opacity] duration-150",
+  "group/select-item flex h-[var(--size-48)] w-full cursor-pointer items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 outline-none transition-[background-color,color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "!text-[var(--content-primary)] data-highlighted:!text-[var(--content-primary)] data-[selected]:!text-[var(--content-primary)] data-highlighted:[&_*]:!text-inherit",
   "hover:bg-[var(--state-hover)] data-highlighted:bg-[var(--state-hover)] data-[visual-state=hover]:bg-[var(--state-hover)] data-[visual-state=active]:bg-[var(--state-hover)] data-[selected]:bg-[var(--state-hover)]",
   "active:bg-[var(--state-pressed)] data-[visual-state=pressed]:bg-[var(--state-pressed)]",
@@ -217,5 +218,4 @@ export const Select = Object.assign(BaseSelect, {
   GroupLabel: SelectGroupLabel,
   Separator: SelectSeparator,
 });
-
 

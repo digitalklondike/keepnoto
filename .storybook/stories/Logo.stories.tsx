@@ -10,7 +10,7 @@ const meta = {
     size: 32,
   },
   render: (args) => (
-    <div className="bg-transparent p-6">
+    <div className="bg-transparent p-[var(--space-24)]">
       <BrandLogo {...args} />
     </div>
   ),

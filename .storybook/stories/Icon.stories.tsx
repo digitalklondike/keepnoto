@@ -16,10 +16,10 @@ type Story = StoryObj<typeof meta>;
 
 export const Sizes: Story = {
   render: () => (
-    <div className="bg-transparent p-6 text-[var(--content-primary)]">
-      <div className="grid grid-cols-[80px_80px_80px] items-end gap-6">
+    <div className="bg-transparent p-[var(--space-24)] text-[var(--content-primary)]">
+      <div className="grid grid-cols-[80px_80px_80px] items-end gap-[var(--space-24)]">
         {iconSizes.map((size) => (
-          <div key={size} className="flex flex-col items-center gap-3">
+          <div key={size} className="flex flex-col items-center gap-[var(--space-12)]">
             <Icon icon={Icons.link} size={size} strokeWidth={1.8} />
             <span className="type-12-semibold text-[var(--content-muted)]">{size}</span>
           </div>

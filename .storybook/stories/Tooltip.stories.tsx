@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import { Tooltip, TooltipSurface, type TooltipSide } from "@/components/keepnoto/tooltip";
+import { Tag } from "@/components/keepnoto/product-components";
 
 const sides: TooltipSide[] = ["top", "right", "bottom", "left"];
 const triggerClassName = "inline-flex h-[var(--size-40)] items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] px-[var(--space-16)] type-12-semibold text-[var(--content-primary)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]";
@@ -53,6 +54,29 @@ export const Directions: Story = {
           </button>
         </Tooltip>
       ))}
+    </div>
+  ),
+};
+export const Interactive: Story = {
+  render: () => (
+    <div className="flex p-[var(--space-48)]">
+      <Tooltip
+        interactive
+        label={
+          <div className="flex flex-col items-start gap-[var(--space-8)]">
+            {["frontend", "docs", "supabase"].map((tag) => (
+              <Tag key={tag} aria-label={`Filter by ${tag}`} onClick={() => undefined}>
+                {tag}
+              </Tag>
+            ))}
+          </div>
+        }
+        side="top"
+      >
+        <button type="button" className={triggerClassName}>
+          +3
+        </button>
+      </Tooltip>
     </div>
   ),
 };

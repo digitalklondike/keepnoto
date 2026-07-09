@@ -1,13 +1,20 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
-import { TextField, type TextFieldVisualState } from "@/components/keepnoto/product-components";
+import { IconButton, Icons, TextField, type TextFieldVisualState } from "@/components/keepnoto/product-components";
 
-const states: Array<{ label: string; visualState: TextFieldVisualState; value?: string; disabled?: boolean }> = [
+const states: Array<{
+  label: string;
+  visualState: TextFieldVisualState;
+  value?: string;
+  disabled?: boolean;
+  clearable?: boolean;
+}> = [
   { label: "Default", visualState: "default" },
   { label: "Hover", visualState: "hover" },
   { label: "Pressed", visualState: "pressed" },
   { label: "Focused", visualState: "focused" },
   { label: "With value", visualState: "default", value: "supabase auth" },
+  { label: "Clearable", visualState: "default", value: "design systems", clearable: true },
   { label: "Disabled", visualState: "default", disabled: true },
 ];
 
@@ -32,10 +39,22 @@ export const States: Story = {
             visualState={state.visualState}
             defaultValue={state.value}
             disabled={state.disabled}
+            endAdornment={
+              state.clearable ? (
+                <IconButton
+                  aria-label="Clear field"
+                  icon={Icons.cancel}
+                  iconSize={16}
+                  label="Clear field"
+                  mode="plain"
+                  tooltip={false}
+                  type="button"
+                />
+              ) : null
+            }
           />
         </div>
       ))}
     </div>
   ),
 };
-

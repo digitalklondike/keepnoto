@@ -2,7 +2,12 @@
 import * as React from "react";
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Button as BaseButton } from "@/components/ui/button";
+import {
+  COMPACT_PREVIEW_MAX_ASPECT_RATIO,
+  COMPACT_PREVIEW_MIN_ASPECT_RATIO,
+} from "@/components/keepnoto/design-constants";
 import { IconTooltip, type IconTooltipSide } from "@/components/keepnoto/icon-tooltip";
+import { Tooltip, useOverflowState } from "@/components/keepnoto/tooltip";
 import { BookmarkIcon, Icons } from "@/components/keepnoto/icons";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +25,7 @@ export function Icon({
 }: {
   icon: IconSvgElement;
   className?: string;
+  endAdornment?: React.ReactNode;
   size?: number;
   strokeWidth?: number;
 }) {
@@ -42,9 +48,9 @@ export type ButtonProps = React.ComponentProps<typeof BaseButton> & {
 
 const buttonToneClassName: Record<ButtonTone, string> = {
   primary: cn("text-[var(--white)] hover:brightness-105", gradientClassName),
-  secondary: "bg-[var(--control-surface)] text-[var(--content-primary)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+  secondary: "bg-[var(--control-surface)] text-[var(--content-primary)] hover:bg-[var(--card-control-hover)] data-[state=hover]:bg-[var(--card-control-hover)]",
   secondaryDanger: cn(
-    "bg-[var(--control-surface)] text-[var(--danger-muted)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+    "bg-[var(--control-surface)] text-[var(--danger-muted)] hover:bg-[var(--card-control-hover)] data-[state=hover]:bg-[var(--card-control-hover)]",
     "hover:text-[var(--danger)] data-[state=hover]:text-[var(--danger)]"
   ),
   ghost: "bg-transparent text-[var(--content-primary)] hover:bg-[var(--control-surface)] data-[state=hover]:bg-[var(--control-surface)]",
@@ -63,7 +69,7 @@ export function Button({ tone = "secondary", visualState = "default", className,
       {...props}
       data-state={visualState}
       className={cn(
-        "gap-[var(--space-8)] rounded-[var(--radius-round)] border-0 type-16-semibold shadow-none transition-[filter,transform,background-color,opacity]",
+        "gap-[var(--space-8)] rounded-[var(--radius-round)] border-0 type-16-semibold shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
         "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
         "data-[state=hover]:brightness-105 data-[state=pressed]:translate-y-px data-[state=pressed]:scale-[0.99]",
         buttonToneClassName[tone],
@@ -82,13 +88,13 @@ export type TooltipSide = IconTooltipSide | "auto";
 export type IconButtonMode = "control" | "plain";
 
 const iconButtonControlClassName = cn(
-  "relative inline-flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] p-[var(--space-0)] text-[var(--icon-muted)]",
+  "relative inline-flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] p-[var(--space-0)] text-[var(--icon-muted)] transition-[background-color,color,filter,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
 );
 
 const iconButtonPlainClassName = cn(
-  "relative inline-flex size-[var(--size-24)] items-center justify-center rounded-[var(--radius-8)] bg-transparent p-[var(--space-0)] text-[var(--icon-muted)]",
+  "relative inline-flex size-[var(--size-24)] items-center justify-center rounded-[var(--radius-8)] bg-transparent p-[var(--space-0)] text-[var(--icon-muted)] transition-[color,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
 );
@@ -231,23 +237,25 @@ export type TextFieldProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, "
   icon?: IconSvgElement;
   visualState?: TextFieldVisualState;
   className?: string;
+  endAdornment?: React.ReactNode;
   inputClassName?: string;
 };
 
-export function TextField({
+export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(function TextField({
   icon = Icons.search,
   visualState = "default",
   className,
+  endAdornment,
   inputClassName,
   ...props
-}: TextFieldProps) {
+}, ref) {
   return (
     <label
       data-state={visualState}
       className={cn(
-        "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[1px] transition-[background-color,opacity,box-shadow]",
-        "bg-[var(--panel-surface)] hover:bg-[var(--control-surface)] focus-within:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] active:bg-[var(--control-surface)]",
-        "data-[state=hover]:bg-[var(--control-surface)] data-[state=pressed]:bg-[var(--control-surface)] data-[state=focused]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)]",
+        "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
+        "bg-[var(--panel-surface)] hover:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] active:bg-[var(--control-surface)]",
+        "data-[state=hover]:bg-[var(--control-surface)] data-[state=pressed]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)]",
         props.disabled && "pointer-events-none opacity-45",
         className
       )}
@@ -258,14 +266,16 @@ export function TextField({
       <span className="sr-only">Field</span>
       <input
         {...props}
+        ref={ref}
         className={cn(
           "ml-[var(--space-8)] h-[var(--size-24)] min-w-0 flex-1 bg-transparent type-16 text-[var(--content-primary)] outline-none placeholder:text-[var(--content-muted)] disabled:cursor-not-allowed disabled:opacity-50",
           inputClassName
         )}
       />
+      {endAdornment ? <span className="ml-[var(--space-8)] flex shrink-0 items-center">{endAdornment}</span> : null}
     </label>
   );
-}
+});
 
 export type TagProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   add?: boolean;
@@ -273,14 +283,16 @@ export type TagProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export function Tag({ add, visualState = "default", className, children, ...props }: TagProps) {
-  return (
+  const tooltipLabel = typeof children === "string" || typeof children === "number" ? String(children) : undefined;
+  const { ref: labelRef, overflowing } = useOverflowState<HTMLSpanElement>(tooltipLabel);
+  const tag = (
     <button
       {...props}
       data-state={visualState}
       data-add={add ? "true" : undefined}
       type={props.type ?? "button"}
       className={cn(
-        "inline-flex h-[var(--size-24)] items-center rounded-[var(--radius-round)] border border-transparent bg-[var(--tag-fill)] px-[var(--space-12)] py-[var(--space-4)] type-12-semibold text-[var(--content-primary)] transition-[transform,background-color,border-color,color,opacity]",
+        "inline-flex h-[var(--size-24)] min-w-0 max-w-[var(--tag-max-width)] items-center rounded-[var(--radius-round)] border border-transparent bg-[var(--tag-fill)] pl-[var(--space-12)] pr-[var(--space-12)] py-[var(--space-4)] type-12-semibold text-[var(--content-primary)] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
         "hover:bg-[var(--tag-hover)] active:scale-[0.98] active:bg-[var(--tag-pressed)] data-[state=hover]:bg-[var(--tag-hover)] data-[state=pressed]:scale-[0.98] data-[state=pressed]:bg-[var(--tag-pressed)]",
         "data-[add=true]:border-[var(--add-tag-border)] data-[add=true]:border-dashed data-[add=true]:bg-[var(--add-tag-fill)] data-[add=true]:text-[var(--content-muted)]",
@@ -291,33 +303,41 @@ export function Tag({ add, visualState = "default", className, children, ...prop
         className
       )}
     >
-      {children}
+      <span ref={labelRef} className="min-w-0 truncate">{children}</span>
     </button>
   );
-}
 
+  return tooltipLabel && overflowing && !props.disabled ? (
+    <Tooltip label={tooltipLabel} side="top">
+      {tag}
+    </Tooltip>
+  ) : tag;
+}
 export type TabProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   as?: "button" | "summary";
   selected?: boolean;
   hasMenu?: boolean;
+  count?: number;
+  showHash?: boolean;
   open?: boolean;
   visualState?: VisualState;
 };
 
 const tabClassName = cn(
-  "inline-flex h-[var(--size-32)] shrink-0 cursor-pointer items-center justify-center gap-[var(--space-8)] overflow-hidden rounded-[var(--radius-10)] bg-[var(--card-control)] bg-clip-padding px-[var(--space-16)] type-16 text-[var(--content-primary)] shadow-none transition-[filter,transform,background-color,opacity] duration-150",
+  "inline-flex h-[var(--size-32)] shrink-0 cursor-pointer items-center justify-center gap-[var(--space-8)] overflow-hidden rounded-[var(--radius-10)] bg-[var(--card-control)] bg-clip-padding px-[var(--space-16)] py-[var(--space-6)] type-16 text-[var(--content-primary)] shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "hover:bg-[var(--card-control-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "data-[state=hover]:bg-[var(--card-control-hover)] data-[state=open]:bg-[var(--card-control-open)] data-popup-open:bg-[var(--card-control-open)] data-[state=open]:text-[var(--card-control-open-text)] data-popup-open:text-[var(--card-control-open-text)] data-[state=open]:ring-1 data-popup-open:ring-1 data-[state=open]:ring-inset data-popup-open:ring-inset data-[state=open]:ring-[var(--card-control-open-ring)] data-popup-open:ring-[var(--card-control-open-ring)] data-[state=pressed]:scale-[0.98]",
   "data-[state=selected]:pointer-events-none data-[state=selected]:cursor-default data-[state=selected]:text-[var(--white)] data-[state=selected]:transition-none"
 );
 
 export const Tab = React.forwardRef<HTMLElement, TabProps>(function Tab(
-  { as = "button", selected, hasMenu, open, visualState = "default", className, children, ...props },
+  { as = "button", selected, hasMenu, count, showHash, open, visualState = "default", className, children, ...props },
   ref
 ) {
   const state = selected ? "selected" : open ? "open" : visualState;
   const sharedClassName = cn(
     tabClassName,
+    "group/tab",
     hasMenu && "gap-[var(--space-4)]",
     selected && gradientClassName,
     props.disabled && "pointer-events-none opacity-45",
@@ -325,13 +345,23 @@ export const Tab = React.forwardRef<HTMLElement, TabProps>(function Tab(
   );
   const content = (
     <>
-      <span>{children}</span>
+      {showHash ? (
+        <span aria-hidden="true" className="text-[var(--tab-hash)] group-data-[state=selected]/tab:text-[var(--white)]">
+          #
+        </span>
+      ) : null}
+      <span className="min-w-0 max-w-[var(--tab-label-max-width)] truncate">{children}</span>
+      {typeof count === "number" ? (
+        <span className="text-[var(--tab-count)] group-data-[state=selected]/tab:text-[var(--tab-count-selected)]">
+          {count}
+        </span>
+      ) : null}
       {hasMenu ? (
         <Icon
           icon={Icons.chevronDown}
           size={20}
           strokeWidth={1.8}
-          className={cn("shrink-0 transition-transform duration-150 group-data-[popup-open]/tab:rotate-180", open && "rotate-180")}
+          className={cn("shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-data-[popup-open]/tab:rotate-180", open && "rotate-180")}
         />
       ) : null}
     </>
@@ -366,7 +396,7 @@ export const Tab = React.forwardRef<HTMLElement, TabProps>(function Tab(
       aria-expanded={hasMenu ? open : props["aria-expanded"]}
       data-state={state}
       type={props.type ?? "button"}
-      className={cn(sharedClassName, "group/tab")}
+      className={sharedClassName}
     >
       {content}
     </button>
@@ -416,6 +446,136 @@ export function BrandLogo({ size = 32, className }: BrandLogoProps) {
   );
 }
 
+
+type MediaAssetImageProps = {
+  src: string;
+  alt: string;
+  fit?: "contain" | "cover";
+  onError: () => void;
+  requireReadable?: boolean;
+};
+
+function getProxiedMediaSrc(src: string) {
+  try {
+    const url = new URL(src);
+
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return `/api/media-proxy?url=${encodeURIComponent(url.href)}`;
+    }
+  } catch {
+    return src;
+  }
+
+  return src;
+}
+
+function analyzeImagePresentation(image: HTMLImageElement) {
+  const canvas = document.createElement("canvas");
+  const size = 32;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+
+  if (!context || image.naturalWidth === 0 || image.naturalHeight === 0) {
+    return { readable: false };
+  }
+
+  canvas.width = size;
+  canvas.height = size;
+  context.drawImage(image, 0, 0, size, size);
+
+  const { data } = context.getImageData(0, 0, size, size);
+  const borderSize = 4;
+  let borderPixels = 0;
+  let opaqueBorderPixels = 0;
+  let visiblePixels = 0;
+  let readablePixels = 0;
+  let red = 0;
+  let green = 0;
+  let blue = 0;
+  let alphaWeight = 0;
+
+  const addBorderPixel = (index: number) => {
+    const alpha = data[index + 3] / 255;
+
+    if (alpha < 0.15) {
+      return;
+    }
+
+    red += data[index] * alpha;
+    green += data[index + 1] * alpha;
+    blue += data[index + 2] * alpha;
+    alphaWeight += alpha;
+  };
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const index = (y * size + x) * 4;
+      const alpha = data[index + 3] / 255;
+
+      if (alpha >= 0.15) {
+        const luminance = data[index] * 0.2126 + data[index + 1] * 0.7152 + data[index + 2] * 0.0722;
+
+        visiblePixels += 1;
+
+        if (luminance < 238) {
+          readablePixels += 1;
+        }
+      }
+
+      if (x >= borderSize && x < size - borderSize && y >= borderSize && y < size - borderSize) {
+        continue;
+      }
+
+      borderPixels += 1;
+
+      if (alpha >= 0.15) {
+        opaqueBorderPixels += 1;
+      }
+
+      addBorderPixel(index);
+    }
+  }
+
+  const hasSolidEdges = borderPixels > 0 && opaqueBorderPixels / borderPixels >= 0.55;
+  const backgroundColor = hasSolidEdges && alphaWeight > 0
+    ? `rgb(${Math.round(red / alphaWeight)} ${Math.round(green / alphaWeight)} ${Math.round(blue / alphaWeight)})`
+    : undefined;
+
+  return {
+    backgroundColor,
+    readable: hasSolidEdges || (visiblePixels >= 10 && readablePixels / visiblePixels >= 0.18),
+  };
+}
+function MediaAssetImage({ src, alt, fit = "contain", onError, requireReadable }: MediaAssetImageProps) {
+  const [sampledBackground, setSampledBackground] = React.useState<{ src: string; color?: string }>();
+  const proxiedSrc = React.useMemo(() => getProxiedMediaSrc(src), [src]);
+  const backgroundColor = sampledBackground?.src === proxiedSrc ? sampledBackground.color : undefined;
+
+  return (
+    <>
+      <span aria-hidden="true" className="absolute inset-0" style={{ backgroundColor }} />
+      <img
+        src={proxiedSrc}
+        alt={alt}
+        className={cn("relative z-10 size-full", fit === "cover" ? "object-cover" : "object-contain")}
+        onError={onError}
+        onLoad={(event) => {
+          try {
+            const presentation = analyzeImagePresentation(event.currentTarget);
+
+            if (requireReadable && !presentation.readable) {
+              onError();
+              return;
+            }
+
+            setSampledBackground({ src: proxiedSrc, color: presentation.backgroundColor });
+          } catch {
+            setSampledBackground({ src: proxiedSrc });
+          }
+        }}
+      />
+    </>
+  );
+}
 export type LinkLogoProps = {
   src?: string;
   alt?: string;
@@ -433,22 +593,29 @@ export function LinkLogo({
   size = "sm",
   className,
 }: LinkLogoProps) {
+  const [failedSrc, setFailedSrc] = React.useState<string | undefined>();
   const sizeClassName = {
     sm: "size-[var(--size-32)] rounded-[var(--radius-8)] type-16-semibold",
     md: "size-[var(--size-40)] rounded-[var(--radius-10)] type-16-semibold",
     lg: "size-[var(--size-48)] rounded-[var(--radius-12)] type-16-semibold",
   }[size];
+  const imageSrc = src && failedSrc !== src ? src : undefined;
+  const showImage = Boolean(imageSrc);
 
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center justify-center overflow-hidden text-[var(--white)]",
+        "inline-flex shrink-0 items-center justify-center overflow-hidden",
         sizeClassName,
         className
       )}
-      style={{ backgroundColor: src ? undefined : color }}
+      style={{ backgroundColor: showImage ? undefined : color, color: "var(--white)" }}
     >
-      {src ? <img src={src} alt={alt} className="size-full object-cover" /> : fallback.slice(0, 1).toUpperCase()}
+      {imageSrc ? (
+        <img src={imageSrc} alt={alt} className="size-full object-contain" onError={() => setFailedSrc(imageSrc)} />
+      ) : (
+        fallback.slice(0, 1).toUpperCase()
+      )}
     </span>
   );
 }
@@ -458,41 +625,99 @@ export type LinkPreviewCardProps = Omit<React.HTMLAttributes<HTMLElement>, "titl
   title: string;
   description: string;
   url: string;
-  imageSrc?: string;
-  imageAlt?: string;
+  previewImageSrc?: string;
+  previewImageAlt?: string;
+  logoSrc?: string;
+  logoAlt?: string;
+  logoFallback?: string;
+  logoColor?: string;
   externalHref?: string;
   externalLabel?: string;
 };
 
-// Preview content is passive product data: later it can be generated from resource metadata.
+
+// Preview content is passive product data. Square-safe metadata imagery
+// takes priority; wide social cards fall back to a large contained site/app
+// logo so wordmarks stay readable instead of being cropped.
 // The card itself is not interactive; only the external-link action is.
 export function LinkPreviewCard({
   title,
   description,
   url,
-  imageSrc,
-  imageAlt = "",
+  previewImageSrc,
+  previewImageAlt = "",
+  logoSrc,
+  logoAlt = "",
+  logoFallback,
+  logoColor = "var(--content-primary)",
   externalHref,
   externalLabel = "Open preview link",
   className,
   ...props
 }: LinkPreviewCardProps) {
+  const [failedPreviewSrc, setFailedPreviewSrc] = React.useState<string | undefined>();
+  const [safePreviewSrc, setSafePreviewSrc] = React.useState<string | undefined>();
+  const [unsafePreviewSrc, setUnsafePreviewSrc] = React.useState<string | undefined>();
+  const [failedLogoSrc, setFailedLogoSrc] = React.useState<string | undefined>();
+  const fallback = (logoFallback ?? title).slice(0, 1).toUpperCase();
+  const previewMeasureSrc = previewImageSrc ? getProxiedMediaSrc(previewImageSrc) : undefined;
+  const previewAssetSrc =
+    previewImageSrc && safePreviewSrc === previewImageSrc && failedPreviewSrc !== previewImageSrc ? previewImageSrc : undefined;
+  const shouldMeasurePreviewImage = Boolean(
+    previewImageSrc &&
+      safePreviewSrc !== previewImageSrc &&
+      unsafePreviewSrc !== previewImageSrc &&
+      failedPreviewSrc !== previewImageSrc
+  );
+  const logoAssetSrc = logoSrc && failedLogoSrc !== logoSrc ? logoSrc : undefined;
+
   return (
     <article
       {...props}
       className={cn(
-        "flex h-[var(--preview-card-height)] w-full gap-[var(--space-16)] rounded-[var(--radius-12)] bg-[var(--white)] p-[var(--space-8)] pr-[var(--space-16)] text-[var(--content-primary)]",
+        "flex h-[var(--preview-card-height)] w-full gap-[var(--space-16)] rounded-[var(--radius-24)] bg-[var(--card-active-surface)] p-[var(--space-8)] pr-[var(--space-16)] text-[var(--content-primary)]",
         className
       )}
     >
-      <div className="flex size-[var(--preview-media-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-10)] bg-[var(--content-primary)] text-[var(--white)]">
-        {imageSrc ? <img src={imageSrc} alt={imageAlt} className="size-full object-cover" /> : <Icon icon={Icons.fileImage} size={20} />}
+      {previewMeasureSrc && shouldMeasurePreviewImage ? (
+        <img
+          src={previewMeasureSrc}
+          alt=""
+          aria-hidden="true"
+          className="sr-only"
+          onLoad={(event) => {
+            const { naturalHeight, naturalWidth } = event.currentTarget;
+            const aspectRatio = naturalHeight > 0 ? naturalWidth / naturalHeight : 0;
+
+            if (aspectRatio >= COMPACT_PREVIEW_MIN_ASPECT_RATIO && aspectRatio <= COMPACT_PREVIEW_MAX_ASPECT_RATIO) {
+              setSafePreviewSrc(previewImageSrc);
+            } else {
+              setUnsafePreviewSrc(previewImageSrc);
+            }
+          }}
+          onError={() => setFailedPreviewSrc(previewImageSrc)}
+        />
+      ) : null}
+
+      <div
+        className="relative flex size-[var(--preview-media-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-16)]"
+        style={{ backgroundColor: previewAssetSrc || logoAssetSrc ? undefined : logoColor, color: "var(--white)" }}
+      >
+        {previewAssetSrc ? (
+          <MediaAssetImage src={previewAssetSrc} alt={previewImageAlt} fit="cover" onError={() => setFailedPreviewSrc(previewAssetSrc)} />
+        ) : logoAssetSrc ? (
+          <MediaAssetImage src={logoAssetSrc} alt={logoAlt} requireReadable onError={() => setFailedLogoSrc(logoAssetSrc)} />
+        ) : fallback ? (
+          <span className="type-logo-letter">{fallback}</span>
+        ) : (
+          <Icon icon={Icons.fileImage} size={20} />
+        )}
       </div>
 
       <div className="flex h-[var(--preview-media-size)] min-w-0 flex-1 flex-col justify-between gap-[var(--space-8)] py-[var(--space-8)]">
         <div className="min-h-0 min-w-0">
           <h3 className="truncate type-16-semibold text-[var(--content-primary)]">{title}</h3>
-          <p className="mt-[var(--space-4)] line-clamp-3 whitespace-pre-line type-16 text-[var(--content-muted)]">
+          <p className="mt-[var(--space-4)] line-clamp-2 whitespace-pre-line type-16 text-[var(--content-muted)]">
             {description}
           </p>
         </div>
@@ -514,8 +739,38 @@ export function LinkPreviewCard({
     </article>
   );
 }
-export { BookmarkIcon, Icons };
 
+export type SavedReasonProps = React.HTMLAttributes<HTMLElement> & {
+  reason: string;
+  label?: string;
+  maxLength?: number;
+};
+
+const SAVED_REASON_MAX_LENGTH = 220;
+
+function truncateSavedReason(reason: string, maxLength: number) {
+  const normalizedReason = reason.trim();
+
+  if (normalizedReason.length <= maxLength) {
+    return normalizedReason;
+  }
+
+  return `${normalizedReason.slice(0, maxLength).trimEnd()}...`;
+}
+
+export function SavedReason({ reason, label = "Why I saved this", maxLength = SAVED_REASON_MAX_LENGTH, className, ...props }: SavedReasonProps) {
+  const visibleReason = truncateSavedReason(reason, maxLength);
+
+  return (
+    <figure {...props} aria-label={label} className={cn("saved-reason", className)}>
+      <figcaption className="saved-reason-label type-label">{label}</figcaption>
+      <blockquote className="saved-reason-note type-saved-reason">
+        {visibleReason}
+      </blockquote>
+    </figure>
+  );
+}
+export { BookmarkIcon, Icons };
 
 
 

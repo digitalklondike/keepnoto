@@ -6,6 +6,8 @@ const radii = [
   ["12", "var(--radius-12)"],
   ["16", "var(--radius-16)"],
   ["20", "var(--radius-20)"],
+  ["24", "var(--radius-24)"],
+  ["32", "var(--radius-32)"],
   ["round", "var(--radius-round)"],
 ] as const;
 

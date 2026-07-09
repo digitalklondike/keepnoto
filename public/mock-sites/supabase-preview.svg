@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10201D"/>
+      <stop offset="0.56" stop-color="#18362F"/>
+      <stop offset="1" stop-color="#071210"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(856 265) rotate(140) scale(420 250)">
+      <stop stop-color="#3ECF8E" stop-opacity="0.48"/>
+      <stop offset="1" stop-color="#3ECF8E" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="828" y1="158" x2="1004" y2="418" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6EF5BB"/>
+      <stop offset="1" stop-color="#24B47E"/>
+    </linearGradient>
+    <linearGradient id="card" x1="636" y1="134" x2="1028" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22493F"/>
+      <stop offset="1" stop-color="#101D1A"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" rx="48" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <g opacity="0.28">
+    <circle cx="106" cy="102" r="3" fill="#DBFBEF"/>
+    <circle cx="176" cy="102" r="3" fill="#DBFBEF"/>
+    <circle cx="246" cy="102" r="3" fill="#DBFBEF"/>
+    <circle cx="106" cy="172" r="3" fill="#DBFBEF"/>
+    <circle cx="176" cy="172" r="3" fill="#DBFBEF"/>
+    <circle cx="246" cy="172" r="3" fill="#DBFBEF"/>
+  </g>
+
+  <g transform="translate(96 90)">
+    <path d="M61.2 26.6c4.4-6.8 15-3.7 15 4.4v170.2c0 8.4-11.1 11.3-15.2 4L7.4 110c-2.4-4.2-2.2-9.3.4-13.4L61.2 26.6Z" fill="#3ECF8E"/>
+    <path d="M95.7 26.6c-4.4-6.8-15-3.7-15 4.4v170.2c0 8.4 11.1 11.3 15.2 4l53.6-95.2c2.4-4.2 2.2-9.3-.4-13.4L95.7 26.6Z" fill="#3ECF8E" opacity="0.42"/>
+  </g>
+
+  <text x="96" y="206" fill="#7EE7BE" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">SUPABASE AUTH</text>
+  <text x="96" y="292" fill="#F8FFFC" font-family="Inter, Arial, sans-serif" font-size="76" font-weight="800">Authenticate and</text>
+  <text x="96" y="374" fill="#F8FFFC" font-family="Inter, Arial, sans-serif" font-size="76" font-weight="800">authorize users</text>
+  <text x="96" y="450" fill="#B9D6CD" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="500">Production-ready user management for modern apps.</text>
+
+  <g transform="translate(644 104)">
+    <rect width="438" height="422" rx="38" fill="url(#card)" stroke="#4B756A" stroke-opacity="0.48" stroke-width="2"/>
+    <rect x="42" y="54" width="354" height="58" rx="18" fill="#DDF8EF" fill-opacity="0.12"/>
+    <rect x="72" y="76" width="142" height="14" rx="7" fill="#DDF8EF" fill-opacity="0.78"/>
+    <rect x="42" y="146" width="354" height="198" rx="24" fill="#09110F" fill-opacity="0.78"/>
+    <path d="M255 178 174 306h75l-26 82 98-134h-74l8-76Z" fill="url(#mark)"/>
+    <rect x="70" y="180" width="112" height="16" rx="8" fill="#DDF8EF" fill-opacity="0.72"/>
+    <rect x="70" y="216" width="164" height="14" rx="7" fill="#DDF8EF" fill-opacity="0.42"/>
+    <rect x="70" y="248" width="132" height="14" rx="7" fill="#DDF8EF" fill-opacity="0.32"/>
+    <rect x="70" y="374" width="104" height="20" rx="10" fill="#3ECF8E"/>
+    <rect x="190" y="374" width="86" height="20" rx="10" fill="#DDF8EF" fill-opacity="0.22"/>
+  </g>
+</svg>
