@@ -175,7 +175,7 @@ export function Tooltip({ label, side = "top", delay = TOOLTIP_DELAY_MS, open, i
             className={cn(
               tooltipSurfaceClassName,
               interactive ? "pointer-events-auto" : "pointer-events-none",
-              "origin-(--transform-origin) transition-[opacity,transform] duration-150 ease-out data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0",
+              "origin-(--transform-origin) transition-[opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0",
               className
             )}
             onPointerEnter={interactive ? showTooltip : undefined}

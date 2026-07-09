@@ -59,8 +59,8 @@ export function MultiSelect({
   value,
   onValueChange,
   onCreateOption,
-  placeholder = "Choose tags",
-  createLabel = (query) => `Create "${query}"`,
+  placeholder = "Search or add tags",
+  createLabel = (query) => `Add "${query}"`,
   disabled,
   defaultOpen = false,
   defaultQuery = "",
@@ -81,9 +81,12 @@ export function MultiSelect({
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const [internalOpen, setInternalOpen] = React.useState(defaultOpen);
   const open = controlledOpen ?? internalOpen;
+  const openRef = React.useRef(open);
+  const suppressFocusOpenRef = React.useRef(false);
   const setOpen = React.useCallback(
     (nextOpen: boolean | ((currentOpen: boolean) => boolean)) => {
-      const resolvedOpen = typeof nextOpen === "function" ? nextOpen(controlledOpen ?? internalOpen) : nextOpen;
+      const resolvedOpen = typeof nextOpen === "function" ? nextOpen(openRef.current) : nextOpen;
+      openRef.current = resolvedOpen;
 
       if (controlledOpen === undefined) {
         setInternalOpen(resolvedOpen);
@@ -91,7 +94,7 @@ export function MultiSelect({
 
       onOpenChange?.(resolvedOpen);
     },
-    [controlledOpen, internalOpen, onOpenChange]
+    [controlledOpen, onOpenChange]
   );
   const [query, setQuery] = React.useState(defaultQuery);
   const [visibleCount, setVisibleCount] = React.useState(value.length);
@@ -103,10 +106,12 @@ export function MultiSelect({
 
 
   React.useEffect(() => {
+    openRef.current = open;
+
     if (open) {
       inputRef.current?.focus();
     }
-  }, [open, setOpen]);
+  }, [open]);
 
   const normalizedQuery = normalizeLabel(query, maxOptionLength).toLowerCase();
   const selectedOptions = React.useMemo(
@@ -185,26 +190,43 @@ export function MultiSelect({
     optionsScrollbarPointerIdRef.current = null;
     event.currentTarget.releasePointerCapture(event.pointerId);
   };
+
+  const closeSelectInput = React.useCallback(() => {
+    suppressFocusOpenRef.current = true;
+    setOpen(false);
+    setQuery("");
+    inputRef.current?.blur();
+
+    window.setTimeout(() => {
+      suppressFocusOpenRef.current = false;
+    }, 120);
+  }, [setOpen]);
+
   React.useEffect(() => {
     if (!open) {
       return;
     }
 
-    const handlePointerDown = (event: PointerEvent) => {
+    const handlePointerDown = (event: MouseEvent | PointerEvent) => {
+      const target = event.target as HTMLElement;
       const path = event.composedPath();
       const insideRoot = rootRef.current ? path.includes(rootRef.current) : false;
       const insidePopup = popupRef.current ? path.includes(popupRef.current) : false;
+      const insidePopupControl = insidePopup && Boolean(target.closest("[data-multi-select-popup-control]"));
 
-      if (!insideRoot && !insidePopup) {
-        setOpen(false);
-        setQuery("");
+      if (!insideRoot && !insidePopupControl) {
+        closeSelectInput();
       }
     };
 
     document.addEventListener("pointerdown", handlePointerDown, { capture: true });
+    document.addEventListener("mousedown", handlePointerDown, { capture: true });
 
-    return () => document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
-  }, [open, setOpen]);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, { capture: true });
+      document.removeEventListener("mousedown", handlePointerDown, { capture: true });
+    };
+  }, [closeSelectInput, open]);
 
   const updateVisibleCount = React.useCallback(() => {
     const tagsElement = tagsRef.current;
@@ -347,9 +369,63 @@ export function MultiSelect({
       return;
     }
 
+    suppressFocusOpenRef.current = false;
     setOpen(true);
     window.requestAnimationFrame(() => inputRef.current?.focus());
   }, [disabled, setOpen]);
+
+  const handleSelectPointerDown = React.useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (disabled) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+
+    if (target === inputRef.current || target.closest("button")) {
+      return;
+    }
+
+    event.preventDefault();
+  }, [disabled]);
+
+  const toggleSelectInput = React.useCallback((event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (disabled) {
+      return;
+    }
+
+    if (openRef.current) {
+      closeSelectInput();
+      return;
+    }
+
+    focusSelectInput();
+  }, [closeSelectInput, disabled, focusSelectInput]);
+
+  const handlePopoverOpenChange = React.useCallback((nextOpen: boolean, eventDetails?: { event?: Event; cancel?: () => void; reason?: string }) => {
+    const event = eventDetails?.event;
+    const path = typeof event?.composedPath === "function" ? event.composedPath() : [];
+    const insideRoot = rootRef.current ? path.includes(rootRef.current) : false;
+    const insidePopup = popupRef.current ? path.includes(popupRef.current) : false;
+    const relatedTarget = event && "relatedTarget" in event ? (event.relatedTarget as Node | null) : null;
+    const focusStillInside =
+      relatedTarget &&
+      ((rootRef.current?.contains(relatedTarget) ?? false) || (popupRef.current?.contains(relatedTarget) ?? false));
+
+    if (!nextOpen && (insideRoot || insidePopup || focusStillInside)) {
+      eventDetails?.cancel?.();
+      return;
+    }
+
+    if (nextOpen) {
+      setOpen(true);
+      return;
+    }
+
+    closeSelectInput();
+  }, [closeSelectInput, setOpen]);
 
   const visibleOptions = selectedOptions.slice(0, visibleCount);
   const hiddenCount = Math.max(0, selectedOptions.length - visibleCount);
@@ -360,11 +436,12 @@ export function MultiSelect({
         data-open={open ? "true" : undefined}
         data-disabled={disabled ? "true" : undefined}
         className={cn(
-          "group/multi-select flex h-[var(--size-48)] w-full items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--panel-surface)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,box-shadow,opacity] duration-150 ease-out",
+          "group/multi-select flex h-[var(--size-48)] w-full items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--panel-surface)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,box-shadow,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
           "hover:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] data-[open=true]:bg-[var(--control-surface)] data-[open=true]:ring-2 data-[open=true]:ring-[var(--focus-ring)]",
           "data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-45"
         )}
         onClick={focusSelectInput}
+        onPointerDown={handleSelectPointerDown}
       >
         <div ref={tagsRef} className="flex min-w-0 flex-1 items-center gap-[var(--space-8)] overflow-hidden">
           {visibleOptions.map((option) => (
@@ -375,8 +452,11 @@ export function MultiSelect({
               <SelectedTagLabel label={option.label} />
               <button
                 aria-label={`Remove ${option.label}`}
-                className="grid size-[var(--space-16)] shrink-0 place-items-center rounded-[var(--radius-round)] p-[var(--space-0)] leading-none text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                onClick={() => removeValue(option.value)}
+                className="grid size-[var(--space-16)] shrink-0 place-items-center rounded-[var(--radius-round)] p-[var(--space-0)] leading-none text-[var(--content-muted)] transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  removeValue(option.value);
+                }}
                 type="button"
               >
                 <Icon icon={Icons.cancel} size={16} strokeWidth={2} />
@@ -404,7 +484,13 @@ export function MultiSelect({
               setQuery(typeof maxOptionLength === "number" ? event.target.value.slice(0, maxOptionLength) : event.target.value);
               setOpen(true);
             }}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              if (suppressFocusOpenRef.current || disabled) {
+                return;
+              }
+
+              setOpen(true);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={selectedOptions.length === 0 ? placeholder : ""}
             role="combobox"
@@ -412,18 +498,21 @@ export function MultiSelect({
           />
         </div>
         <button
-          aria-label="Open tag dropdown"
-          className="inline-flex size-[var(--size-24)] shrink-0 items-center justify-center rounded-[var(--radius-round)] text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+          aria-label="Open tags"
+          className="inline-flex size-[var(--size-24)] shrink-0 items-center justify-center rounded-[var(--radius-round)] text-[var(--content-muted)] transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
           disabled={disabled}
-          onClick={focusSelectInput}
-          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onPointerDown={toggleSelectInput}
           type="button"
         >
           <Icon
             icon={Icons.chevronDown}
             size={20}
             strokeWidth={1.8}
-            className={cn("transition-transform duration-150 ease-out", open && "rotate-180")}
+            className={cn("transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]", open && "rotate-180")}
           />
         </button>
       </div>
@@ -445,7 +534,7 @@ export function MultiSelect({
       </div>
 
       {open ? (
-        <BasePopover.Root open={open} onOpenChange={setOpen}>
+        <BasePopover.Root open={open} onOpenChange={handlePopoverOpenChange}>
           <BasePopover.Portal>
             <BasePopover.Positioner
               align="start"
@@ -456,7 +545,7 @@ export function MultiSelect({
               side="bottom"
               sideOffset={FLOATING_SIDE_OFFSET}
             >
-              <BasePopover.Popup ref={popupRef} className="relative max-h-[var(--dropdown-max-height)] w-(--anchor-width) min-w-[var(--dropdown-width)] origin-(--transform-origin) overflow-hidden rounded-[var(--radius-20)] bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] backdrop-blur-[var(--blur-panel)] transition-[opacity,transform] duration-200 ease-out data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0">
+              <BasePopover.Popup ref={popupRef} className="relative max-h-[var(--dropdown-max-height)] w-(--anchor-width) min-w-[var(--dropdown-width)] origin-(--transform-origin) overflow-hidden rounded-[var(--radius-20)] bg-[var(--popover-surface)] p-[var(--space-8)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] backdrop-blur-[var(--blur-panel)] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] data-[ending-style]:scale-[0.98] data-[ending-style]:opacity-0 data-[starting-style]:scale-[0.98] data-[starting-style]:opacity-0">
                 <div
                   ref={optionsScrollRef}
                   id={listboxId}
@@ -471,7 +560,8 @@ export function MultiSelect({
               <button
                 key={option.value}
                 aria-selected={selected}
-                className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--content-primary)] outline-none transition-[background-color,opacity] duration-150 ease-out hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
+                data-multi-select-popup-control
+                className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--content-primary)] outline-none transition-[background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
                 onClick={() => setSelected(option.value, selected)}
                 role="option"
                 type="button"
@@ -483,7 +573,8 @@ export function MultiSelect({
           })}
           {canCreate ? (
             <button
-              className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--accent-start)] outline-none transition-[background-color,opacity] duration-150 ease-out hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
+              data-multi-select-popup-control
+              className="flex h-[var(--size-48)] w-full shrink-0 items-center gap-[var(--space-8)] rounded-[var(--radius-12)] px-[var(--space-12)] type-16 text-[var(--accent-start)] outline-none transition-[background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[var(--state-hover)] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--focus-ring)] active:bg-[var(--state-pressed)]"
               onClick={createOption}
               type="button"
             >
@@ -493,11 +584,12 @@ export function MultiSelect({
           ) : null}
           {filteredOptions.length === 0 && !canCreate ? (
             <div className="flex h-[var(--size-48)] shrink-0 items-center px-[var(--space-12)] type-16 text-[var(--content-muted)]">
-              No tags found
+              No matching tags
             </div>
           ) : null}
                 </div>
                 <div
+                  data-multi-select-popup-control
                   ref={optionsScrollbarTrackRef}
                   aria-hidden="true"
                   className={cn(

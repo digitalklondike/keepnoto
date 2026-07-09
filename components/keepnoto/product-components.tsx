@@ -48,9 +48,9 @@ export type ButtonProps = React.ComponentProps<typeof BaseButton> & {
 
 const buttonToneClassName: Record<ButtonTone, string> = {
   primary: cn("text-[var(--white)] hover:brightness-105", gradientClassName),
-  secondary: "bg-[var(--control-surface)] text-[var(--content-primary)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+  secondary: "bg-[var(--control-surface)] text-[var(--content-primary)] hover:bg-[var(--card-control-hover)] data-[state=hover]:bg-[var(--card-control-hover)]",
   secondaryDanger: cn(
-    "bg-[var(--control-surface)] text-[var(--danger-muted)] hover:bg-[var(--cream)] data-[state=hover]:bg-[var(--cream)]",
+    "bg-[var(--control-surface)] text-[var(--danger-muted)] hover:bg-[var(--card-control-hover)] data-[state=hover]:bg-[var(--card-control-hover)]",
     "hover:text-[var(--danger)] data-[state=hover]:text-[var(--danger)]"
   ),
   ghost: "bg-transparent text-[var(--content-primary)] hover:bg-[var(--control-surface)] data-[state=hover]:bg-[var(--control-surface)]",
@@ -69,7 +69,7 @@ export function Button({ tone = "secondary", visualState = "default", className,
       {...props}
       data-state={visualState}
       className={cn(
-        "gap-[var(--space-8)] rounded-[var(--radius-round)] border-0 type-16-semibold shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-out",
+        "gap-[var(--space-8)] rounded-[var(--radius-round)] border-0 type-16-semibold shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
         "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
         "data-[state=hover]:brightness-105 data-[state=pressed]:translate-y-px data-[state=pressed]:scale-[0.99]",
         buttonToneClassName[tone],
@@ -88,13 +88,13 @@ export type TooltipSide = IconTooltipSide | "auto";
 export type IconButtonMode = "control" | "plain";
 
 const iconButtonControlClassName = cn(
-  "relative inline-flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] p-[var(--space-0)] text-[var(--icon-muted)] transition-[background-color,color,filter,opacity,transform] duration-150 ease-out",
+  "relative inline-flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] p-[var(--space-0)] text-[var(--icon-muted)] transition-[background-color,color,filter,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
 );
 
 const iconButtonPlainClassName = cn(
-  "relative inline-flex size-[var(--size-24)] items-center justify-center rounded-[var(--radius-8)] bg-transparent p-[var(--space-0)] text-[var(--icon-muted)] transition-[color,opacity,transform] duration-150 ease-out",
+  "relative inline-flex size-[var(--size-24)] items-center justify-center rounded-[var(--radius-8)] bg-transparent p-[var(--space-0)] text-[var(--icon-muted)] transition-[color,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "active:scale-[0.96] data-[state=pressed]:scale-[0.96]"
 );
@@ -253,7 +253,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(func
     <label
       data-state={visualState}
       className={cn(
-        "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,opacity,box-shadow] duration-150 ease-out",
+        "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
         "bg-[var(--panel-surface)] hover:bg-[var(--control-surface)] focus-within:ring-2 focus-within:ring-[var(--focus-ring)] active:bg-[var(--control-surface)]",
         "data-[state=hover]:bg-[var(--control-surface)] data-[state=pressed]:bg-[var(--control-surface)] data-[state=focused]:ring-2 data-[state=focused]:ring-[var(--focus-ring)]",
         props.disabled && "pointer-events-none opacity-45",
@@ -292,7 +292,7 @@ export function Tag({ add, visualState = "default", className, children, ...prop
       data-add={add ? "true" : undefined}
       type={props.type ?? "button"}
       className={cn(
-        "inline-flex h-[var(--size-24)] min-w-0 max-w-[var(--tag-max-width)] items-center rounded-[var(--radius-round)] border border-transparent bg-[var(--tag-fill)] pl-[var(--space-12)] pr-[var(--space-12)] py-[var(--space-4)] type-12-semibold text-[var(--content-primary)] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-out",
+        "inline-flex h-[var(--size-24)] min-w-0 max-w-[var(--tag-max-width)] items-center rounded-[var(--radius-round)] border border-transparent bg-[var(--tag-fill)] pl-[var(--space-12)] pr-[var(--space-12)] py-[var(--space-4)] type-12-semibold text-[var(--content-primary)] transition-[transform,background-color,border-color,color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
         "hover:bg-[var(--tag-hover)] active:scale-[0.98] active:bg-[var(--tag-pressed)] data-[state=hover]:bg-[var(--tag-hover)] data-[state=pressed]:scale-[0.98] data-[state=pressed]:bg-[var(--tag-pressed)]",
         "data-[add=true]:border-[var(--add-tag-border)] data-[add=true]:border-dashed data-[add=true]:bg-[var(--add-tag-fill)] data-[add=true]:text-[var(--content-muted)]",
@@ -324,7 +324,7 @@ export type TabProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const tabClassName = cn(
-  "inline-flex h-[var(--size-32)] shrink-0 cursor-pointer items-center justify-center gap-[var(--space-8)] overflow-hidden rounded-[var(--radius-10)] bg-[var(--card-control)] bg-clip-padding px-[var(--space-16)] py-[var(--space-6)] type-16 text-[var(--content-primary)] shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-out",
+  "inline-flex h-[var(--size-32)] shrink-0 cursor-pointer items-center justify-center gap-[var(--space-8)] overflow-hidden rounded-[var(--radius-10)] bg-[var(--card-control)] bg-clip-padding px-[var(--space-16)] py-[var(--space-6)] type-16 text-[var(--content-primary)] shadow-none transition-[filter,transform,background-color,opacity] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
   "hover:bg-[var(--card-control-hover)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]",
   "data-[state=hover]:bg-[var(--card-control-hover)] data-[state=open]:bg-[var(--card-control-open)] data-popup-open:bg-[var(--card-control-open)] data-[state=open]:text-[var(--card-control-open-text)] data-popup-open:text-[var(--card-control-open-text)] data-[state=open]:ring-1 data-popup-open:ring-1 data-[state=open]:ring-inset data-popup-open:ring-inset data-[state=open]:ring-[var(--card-control-open-ring)] data-popup-open:ring-[var(--card-control-open-ring)] data-[state=pressed]:scale-[0.98]",
   "data-[state=selected]:pointer-events-none data-[state=selected]:cursor-default data-[state=selected]:text-[var(--white)] data-[state=selected]:transition-none"
@@ -361,7 +361,7 @@ export const Tab = React.forwardRef<HTMLElement, TabProps>(function Tab(
           icon={Icons.chevronDown}
           size={20}
           strokeWidth={1.8}
-          className={cn("shrink-0 transition-transform duration-150 ease-out group-data-[popup-open]/tab:rotate-180", open && "rotate-180")}
+          className={cn("shrink-0 transition-transform duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] group-data-[popup-open]/tab:rotate-180", open && "rotate-180")}
         />
       ) : null}
     </>
@@ -763,15 +763,10 @@ export function SavedReason({ reason, label = "Why I saved this", maxLength = SA
 
   return (
     <figure {...props} aria-label={label} className={cn("saved-reason", className)}>
-      <div className="saved-reason-mark" aria-hidden="true">
-        &ldquo;
-      </div>
-      <div className="saved-reason-content">
-        <figcaption className="saved-reason-label type-label">{label}</figcaption>
-        <blockquote className="saved-reason-note font-handwritten type-saved-reason">
-          {visibleReason}
-        </blockquote>
-      </div>
+      <figcaption className="saved-reason-label type-label">{label}</figcaption>
+      <blockquote className="saved-reason-note type-saved-reason">
+        {visibleReason}
+      </blockquote>
     </figure>
   );
 }

@@ -7,6 +7,7 @@ export const COMPACT_PREVIEW_MIN_ASPECT_RATIO = 0.75;
 export const COMPACT_PREVIEW_MAX_ASPECT_RATIO = 1.35;
 
 export const TAG_MAX_LENGTH = 18;
+export const SAVED_REASON_INPUT_MAX_LENGTH = 500;
 export const FILTER_TAB_ROW_WIDTH = 536;
 export const FILTER_TAB_GAP = 8;
 export const FILTER_TAB_MORE_WIDTH = 88;

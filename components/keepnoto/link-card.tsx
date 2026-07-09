@@ -230,17 +230,12 @@ export function LinkCard({
           <span className="block truncate type-12 text-[var(--content-muted)]">{url ?? source}</span>
         </span>
         {trimmedDescription ? (
-          <span className="mt-[var(--space-12)] flex min-w-0 items-start gap-[var(--space-8)] rounded-[var(--radius-16)] border border-[var(--saved-reason-border)] bg-[var(--saved-reason-surface)] px-[var(--space-12)] py-[var(--space-8)] text-[var(--saved-reason-ink)]">
-            <span aria-hidden="true" className="shrink-0 font-sans type-16-semibold text-[var(--saved-reason-mark)]">
-              &ldquo;
-            </span>
-            <span className="line-clamp-2 min-w-0 overflow-hidden font-handwritten type-16 text-[var(--saved-reason-ink)] [text-wrap:pretty]">
-              {trimmedDescription}
-            </span>
+          <span className="link-card-description mt-[var(--space-16)] min-w-0 type-16 text-[var(--content-primary)]">
+            {trimmedDescription}
           </span>
         ) : null}
         {hasFooter ? (
-          <span className={cn("flex min-w-0 items-center gap-[var(--space-8)]", trimmedDescription ? "mt-[var(--space-8)]" : "mt-[var(--space-16)]")}>
+          <span className={cn("flex min-w-0 items-center gap-[var(--space-8)]", trimmedDescription ? "mt-[var(--space-12)]" : "mt-[var(--space-16)]")}>
             <span ref={tagListRef} className="relative flex min-w-0 flex-1 items-center gap-[var(--space-8)] overflow-hidden">
               {visibleTags.map((tag) => (
                 <LinkCardTag key={tag}>{tag}</LinkCardTag>

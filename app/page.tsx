@@ -1,8 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import * as React from "react";
 import { flushSync } from "react-dom";
 import { Dropdown, DropdownItem } from "@/components/keepnoto/dropdown";
+import { LargeTextField } from "@/components/keepnoto/large-text-field";
 import { MultiSelect, type MultiSelectOption } from "@/components/keepnoto/multi-select";
 import { Tooltip } from "@/components/keepnoto/tooltip";
 import {
@@ -10,6 +12,7 @@ import {
   FILTER_TAB_MORE_WIDTH,
   FILTER_TAB_ROW_WIDTH,
   FLOATING_SIDE_OFFSET,
+  SAVED_REASON_INPUT_MAX_LENGTH,
   TAG_MAX_LENGTH,
 } from "@/components/keepnoto/design-constants";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -38,6 +41,9 @@ const filterTabs = [
   { label: "docs" },
   { label: "supabase" },
 ];
+
+const SAVED_REASON_FIELD_LABEL = "Why I saved this";
+const SAVED_REASON_PLACEHOLDER = "Why will this matter later?";
 
 const sortOptions = [
   { id: "recent", label: "Recently saved" },
@@ -105,6 +111,8 @@ const savedLinks: SavedLink[] = [
     previewTitle: "Supabase Docs",
     previewDescription:
       "Production-ready backend for app developers.\nPostgres, Auth, Storage and Edge Functions.",
+    savedReason:
+      "The cleanest explanation of magic links and OAuth providers I found. Coming back when I wire auth into the side project.",
     href: "https://supabase.com/docs/guides/auth",
     type: "Documentation",
     collection: null,
@@ -122,6 +130,8 @@ const savedLinks: SavedLink[] = [
     previewTitle: "Linear Changelog",
     previewDescription:
       "Product updates and design notes from Linear. Useful for studying crisp workflows and calm defaults.",
+    savedReason:
+      "Keeping this as a reference for dense product UI that still feels calm, readable, and intentional.",
     href: "https://linear.app/changelog/design-system",
     type: "Reference",
     collection: "Design references",
@@ -365,9 +375,13 @@ export default function Home() {
   const [draftTitle, setDraftTitle] = React.useState("");
   const [draftUrl, setDraftUrl] = React.useState("");
   const [draftTags, setDraftTags] = React.useState<string[]>([]);
+  const [draftSavedReason, setDraftSavedReason] = React.useState("");
   const libraryScrollRef = React.useRef<HTMLDivElement>(null);
+  const libraryCardStackRef = React.useRef<HTMLDivElement>(null);
   const libraryScrollbarTrackRef = React.useRef<HTMLDivElement>(null);
   const libraryScrollbarDragRef = React.useRef<{ thumbOffset: number } | null>(null);
+  const detailTagsRowRef = React.useRef<HTMLDivElement>(null);
+  const [detailAddTagCompact, setDetailAddTagCompact] = React.useState(false);
   const [libraryScrollState, setLibraryScrollState] = React.useState({
     thumbHeight: 0,
     thumbTop: 0,
@@ -474,6 +488,7 @@ export default function Home() {
     () => orderLinksByFavorite(sortedLinks, favoriteLinkIds),
     [sortedLinks, favoriteLinkIds]
   );
+  const hasLibraryCards = orderedLinks.length > 0;
   const activeSortOption = sortOptions.find((option) => option.id === sortOptionId) ?? sortOptions[0];
   const selectedLink = React.useMemo(
     () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? links[0] ?? savedLinks[0],
@@ -503,11 +518,53 @@ export default function Home() {
   const pendingPreviewIdsRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
+    const rowElement = detailTagsRowRef.current;
+
+    if (!rowElement) {
+      return;
+    }
+
+    const updateAddTagLabel = () => {
+      const measureElement = rowElement.querySelector<HTMLElement>("[data-detail-add-tag-measure='true']");
+      const visibleTagElements = Array.from(
+        rowElement.querySelectorAll<HTMLElement>("[data-detail-tag-item='true']")
+      );
+      const hiddenTagElement = rowElement.querySelector<HTMLElement>("[data-detail-hidden-tags='true']");
+
+      if (!measureElement) {
+        return;
+      }
+
+      const rowStyle = window.getComputedStyle(rowElement);
+      const gap = Number.parseFloat(rowStyle.columnGap || rowStyle.gap) || 0;
+      const visibleTagsWidth = visibleTagElements.reduce((sum, element) => sum + element.offsetWidth, 0);
+      const hiddenTagsWidth = hiddenTagElement?.offsetWidth ?? 0;
+      const itemCount = visibleTagElements.length + (hiddenTagElement ? 1 : 0) + 1;
+      const fullAddTagWidth =
+        visibleTagsWidth + hiddenTagsWidth + measureElement.offsetWidth + gap * Math.max(itemCount - 1, 0);
+
+      setDetailAddTagCompact(fullAddTagWidth > rowElement.clientWidth);
+    };
+
+    updateAddTagLabel();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateAddTagLabel);
+      return () => window.removeEventListener("resize", updateAddTagLabel);
+    }
+
+    const resizeObserver = new ResizeObserver(updateAddTagLabel);
+    resizeObserver.observe(rowElement);
+
+    return () => resizeObserver.disconnect();
+  }, [hiddenDetailTags.length, selectedLink.id, selectedLink.tags]);
+  React.useEffect(() => {
     let cancelled = false;
     const pendingPreviewIds = pendingPreviewIdsRef.current;
     const requestedPreviewIds = new Set<string>();
 
     for (const link of links) {
+
       if (hydratedPreviewIdsRef.current.has(link.id) || pendingPreviewIds.has(link.id)) {
         continue;
       }
@@ -567,6 +624,13 @@ export default function Home() {
       return;
     }
 
+    if (!hasLibraryCards) {
+      setLibraryScrollState((current) =>
+        current.visible ? { thumbHeight: 0, thumbTop: 0, visible: false } : current
+      );
+      return;
+    }
+
     const { clientHeight, scrollHeight, scrollTop } = element;
     const visible = scrollHeight > clientHeight + 1;
 
@@ -591,7 +655,7 @@ export default function Home() {
 
       return { thumbHeight, thumbTop, visible };
     });
-  }, []);
+  }, [hasLibraryCards]);
 
   const scrollLibraryToThumbPosition = React.useCallback(
     (clientY: number, thumbOffset: number) => {
@@ -656,31 +720,45 @@ export default function Home() {
   }, []);
 
   React.useLayoutEffect(() => {
-    updateLibraryScrollbar();
+    let frameId = window.requestAnimationFrame(updateLibraryScrollbar);
+    const scheduleLibraryScrollbarUpdate = () => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(updateLibraryScrollbar);
+    };
 
     const element = libraryScrollRef.current;
+    const contentElement = libraryCardStackRef.current;
 
     if (!element || typeof ResizeObserver === "undefined") {
-      window.addEventListener("resize", updateLibraryScrollbar);
-      return () => window.removeEventListener("resize", updateLibraryScrollbar);
+      window.addEventListener("resize", scheduleLibraryScrollbarUpdate);
+      return () => {
+        window.cancelAnimationFrame(frameId);
+        window.removeEventListener("resize", scheduleLibraryScrollbarUpdate);
+      };
     }
 
-    const resizeObserver = new ResizeObserver(updateLibraryScrollbar);
+    const resizeObserver = new ResizeObserver(scheduleLibraryScrollbarUpdate);
     resizeObserver.observe(element);
 
-    window.addEventListener("resize", updateLibraryScrollbar);
+    if (contentElement) {
+      resizeObserver.observe(contentElement);
+    }
+
+    window.addEventListener("resize", scheduleLibraryScrollbarUpdate);
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       resizeObserver.disconnect();
-      window.removeEventListener("resize", updateLibraryScrollbar);
+      window.removeEventListener("resize", scheduleLibraryScrollbarUpdate);
     };
-  }, [orderedLinks.length, updateLibraryScrollbar]);
+  }, [hasLibraryCards, orderedLinks.length, updateLibraryScrollbar]);
 
 
   const resetSaveDialog = () => {
     setDraftTitle("");
     setDraftUrl("");
     setDraftTags([]);
+    setDraftSavedReason("");
   };
 
   const handleSaveDialogOpenChange = (nextOpen: boolean) => {
@@ -708,6 +786,7 @@ export default function Home() {
     setDraftTitle(link.title);
     setDraftUrl(link.href);
     setDraftTags(link.tags);
+    setDraftSavedReason((link.savedReason ?? "").slice(0, SAVED_REASON_INPUT_MAX_LENGTH));
     setSaveDialogTagsOpen(Boolean(options?.openTags));
     setSaveDialogOpen(true);
   };
@@ -752,6 +831,7 @@ export default function Home() {
 
     const linkParts = getLinkParts(rawUrl);
     const normalizedTags = Array.from(new Set(draftTags.map(normalizeTagValue).filter(Boolean)));
+    const savedReason = draftSavedReason.trim().slice(0, SAVED_REASON_INPUT_MAX_LENGTH);
     const metadata = await fetchLinkPreviewMetadata(linkParts.href);
     const metadataDescription = metadata?.description?.trim();
     const metadataTitle = metadata?.title?.trim();
@@ -787,6 +867,7 @@ export default function Home() {
         metadataImageSrc: metadataImage ?? (hrefChanged ? undefined : editedLink.metadataImageSrc),
         type: metadata?.type === "article" ? "Article" : hrefChanged ? "Link" : editedLink.type,
         tags: normalizedTags,
+        savedReason: savedReason || undefined,
       };
 
       hydratedPreviewIdsRef.current.delete(updatedLink.id);
@@ -804,7 +885,7 @@ export default function Home() {
       domain: linkParts.domain,
       source: metadata?.domain ?? linkParts.source,
       description: metadataDescription ?? "Saved manually. Preview metadata was not available from this URL.",
-      savedReason: "Saved this link to revisit later with the context close by.",
+      savedReason: savedReason || undefined,
       previewTitle: metadataTitle ?? metadataSiteName ?? title,
       previewDescription: metadataDescription ?? "No preview description was provided by the saved URL.",
       href: resolvedHref,
@@ -951,7 +1032,7 @@ export default function Home() {
         <rect width="100%" height="100%" filter="url(#paper-fibers)" opacity="0.55" />
       </svg>
 
-      <div className="relative mx-auto flex h-full w-[var(--app-max-width)] min-w-[var(--app-max-width)] flex-col">
+      <div className="relative mx-auto flex h-full w-[var(--app-width)] min-w-[var(--app-min-width)] max-w-[var(--app-max-width)] flex-col">
         <header className="grid h-[var(--size-48)] w-full grid-cols-[var(--layout-left-width)_var(--layout-detail-width)] items-center gap-[var(--space-24)]">
           <div className="flex h-[var(--size-48)] w-[var(--layout-left-width)] shrink-0 items-center gap-[var(--space-16)]">
             <div className="flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-12)]">
@@ -984,7 +1065,7 @@ export default function Home() {
               value={searchQuery}
             />
           </div>
-          <div className="flex h-[var(--size-48)] w-[var(--layout-detail-width)] min-w-[var(--layout-detail-width)] max-w-[var(--layout-detail-width)] shrink-0 items-center justify-end">
+          <div className="flex h-[var(--size-48)] w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] items-center justify-end">
             <Button
               tone="primary"
               className="h-[var(--size-48)] w-[var(--save-button-width)] min-w-[var(--save-button-width)] max-w-[var(--save-button-width)] shrink-0"
@@ -1000,14 +1081,16 @@ export default function Home() {
         <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
           <DialogContent
             showCloseButton={false}
-            className="flex w-[var(--save-link-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)] sm:!max-w-[var(--save-link-dialog-width)]"
+            className="flex w-[var(--save-link-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)] sm:!max-w-[var(--save-link-dialog-width)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
-              <DialogTitle className="type-title text-[var(--content-primary)]">{saveDialogMode === "edit" ? "Edit link" : "Save link"}</DialogTitle>
+              <DialogTitle className="type-title text-[var(--content-primary)]">
+                {saveDialogMode === "edit" ? "Edit link" : "Save link"}
+              </DialogTitle>
               <DialogDescription className="type-16 text-[var(--content-muted)]">
                 {saveDialogMode === "edit"
-                  ? "Update this saved link. Keepnoto will refresh metadata from the URL when available."
-                  : "Add the link now. Keepnoto will use real metadata from the URL when available."}
+                  ? "Update the link, tags, and why it still matters for later."
+                  : "Save this link with context, so it is easy to understand later."}
               </DialogDescription>
             </div>
 
@@ -1036,6 +1119,17 @@ export default function Home() {
               </label>
 
               <div className="flex flex-col gap-[var(--space-8)]">
+                <span className="type-label text-[var(--content-muted)]">{SAVED_REASON_FIELD_LABEL}</span>
+                <LargeTextField
+                  aria-label={SAVED_REASON_FIELD_LABEL}
+                  maxLength={SAVED_REASON_INPUT_MAX_LENGTH}
+                  onChange={(event) => setDraftSavedReason(event.currentTarget.value.slice(0, SAVED_REASON_INPUT_MAX_LENGTH))}
+                  placeholder={SAVED_REASON_PLACEHOLDER}
+                  value={draftSavedReason}
+                />
+              </div>
+
+              <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Tags</span>
                 <MultiSelect
                   onCreateOption={createTagOption}
@@ -1043,13 +1137,13 @@ export default function Home() {
                   onValueChange={setDraftTags}
                   open={saveDialogTagsOpen}
                   options={tagOptions}
-                  placeholder="Choose or create tags"
+                  placeholder="Search or add tags"
                   value={draftTags}
                   maxOptionLength={TAG_MAX_LENGTH}
                 />
               </div>
 
-              <div className="flex h-[var(--size-48)] items-center gap-[var(--space-8)] pt-[var(--space-8)]">
+              <div className="flex items-center gap-[var(--space-8)] pt-[var(--space-8)]">
                 <Button className="h-[var(--size-48)] flex-1" disabled={isSavingLink} onClick={() => handleSaveDialogOpenChange(false)} tone="secondary" type="button">
                   Cancel
                 </Button>
@@ -1065,78 +1159,80 @@ export default function Home() {
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent
             showCloseButton={false}
-            className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
+            className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
-              <DialogTitle className="type-title text-[var(--content-primary)]">Delete link?</DialogTitle>
+              <DialogTitle className="type-title text-[var(--content-primary)]">Remove this link?</DialogTitle>
               <DialogDescription className="type-16 text-[var(--content-muted)]">
-                This will remove {selectedLink.title} from your library. This action cannot be undone.
+                This removes the link and saved note from your library. You can save it again, but this copy will be gone.
               </DialogDescription>
             </div>
 
             <div className="flex h-[var(--size-48)] items-center gap-[var(--space-8)]">
               <Button className="h-[var(--size-48)] flex-1" onClick={() => setDeleteDialogOpen(false)} tone="secondary" type="button">
-                Cancel
+                Keep link
               </Button>
               <Button className="h-[var(--size-48)] flex-1" onClick={handleDeleteSelectedLink} tone="secondaryDanger" type="button">
-                Delete
+                Remove link
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
           <DialogContent
+            initialFocus={false}
             showCloseButton={false}
-            className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
+            className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
-              <DialogTitle className="type-title text-[var(--content-primary)]">Share link</DialogTitle>
+              <DialogTitle className="type-title text-[var(--content-primary)]">Share this link</DialogTitle>
               <DialogDescription className="type-16 text-[var(--content-muted)]">
-                Share {selectedLink.title} or copy the direct resource link.
+                Copy the URL or share this saved link.
               </DialogDescription>
             </div>
 
-            <div className="flex flex-col gap-[var(--space-8)]">
-              <span className="type-label text-[var(--content-muted)]">Link</span>
-              <div className="flex h-[var(--size-48)] min-w-0 items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--panel-surface)] p-[var(--space-8)]">
-                <Icon icon={Icons.link} size={20} strokeWidth={1.8} className="shrink-0 text-[var(--content-muted)]" />
-                <span className="min-w-0 flex-1 truncate type-16 text-[var(--content-primary)]">{selectedLink.href}</span>
+            <TextField
+              aria-label="Link URL"
+              className="w-full !pr-[var(--space-8)]"
+              icon={Icons.link}
+              inputClassName="truncate"
+              readOnly
+              value={selectedLink.href}
+              endAdornment={
                 <Button className={cn("relative h-[var(--size-32)] overflow-visible px-[var(--space-16)] type-12-semibold", shareCopyState === "copied" && "copy-success-button")} onClick={handleCopyShareLink} tone="secondary" type="button">
                   <Icon icon={shareCopyState === "copied" ? Icons.check : Icons.copy} size={16} strokeWidth={2} aria-hidden="true" />
-                  <span aria-live="polite">{shareCopyState === "copied" ? "Copied" : shareCopyState === "failed" ? "Retry" : "Copy"}</span>
+                  <span aria-live="polite">{shareCopyState === "copied" ? "Copied" : shareCopyState === "failed" ? "Try again" : "Copy"}</span>
                 </Button>
-              </div>
-            </div>
-
+              }
+            />
             <div className="flex items-center gap-[var(--space-16)]">
               <span aria-hidden="true" className="h-px flex-1 bg-[var(--divider-subtle)]" />
               <div className="flex shrink-0 items-center justify-center gap-[var(--space-8)]">
-              {shareTargets.map((target) => (
-                <a
-                  key={target.label}
-                  aria-label={`Share on ${target.label}`}
-                  className="inline-flex size-[var(--size-48)] shrink-0 items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--content-primary)] transition-[background-color,color,opacity,transform] duration-150 ease-out hover:bg-[var(--card-control-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                  href={target.href}
-                  rel={target.href.startsWith("mailto:") ? undefined : "noreferrer"}
-                  target={target.href.startsWith("mailto:") ? undefined : "_blank"}
-                  title={target.label}
-                >
-                  <SocialLogo name={target.logo} />
-                </a>
-              ))}
+                {shareTargets.map((target) => (
+                  <a
+                    key={target.label}
+                    aria-label={`Share on ${target.label}`}
+                    className="inline-flex size-[var(--size-48)] shrink-0 items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--content-primary)] transition-[background-color,color,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:bg-[var(--card-control-hover)] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
+                    href={target.href}
+                    rel={target.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                    target={target.href.startsWith("mailto:") ? undefined : "_blank"}
+                    title={target.label}
+                  >
+                    <SocialLogo name={target.logo} />
+                  </a>
+                ))}
               </div>
               <span aria-hidden="true" className="h-px flex-1 bg-[var(--divider-subtle)]" />
             </div>
 
             <Button className="h-[var(--size-48)] w-full" onClick={() => setShareDialogOpen(false)} tone="secondary" type="button">
-              Done
+              Close
             </Button>
           </DialogContent>
         </Dialog>
-        <div className="mt-[var(--space-24)] grid min-h-0 flex-1 w-full grid-cols-[var(--layout-left-width)_var(--layout-detail-width)] gap-[var(--space-24)]">
-          <div className="flex h-full w-[var(--layout-left-width)] shrink-0 gap-[var(--space-16)]">
+        <div className="mt-[var(--space-24)] grid min-h-0 flex-1 w-full overflow-hidden grid-cols-[var(--layout-left-width)_var(--layout-detail-width)] gap-[var(--space-24)]">
+          <div className="flex h-full min-h-0 w-[var(--layout-left-width)] shrink-0 gap-[var(--space-16)]">
             <aside aria-label="Keepnoto navigation" className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col items-center justify-between">
               <nav className="flex w-[var(--layout-sidebar-width)] flex-col items-center gap-[var(--space-8)]">
                 {navItems.map((item) => (
@@ -1150,7 +1246,7 @@ export default function Home() {
               </div>
             </aside>
 
-            <section ref={setLibraryBoundary} className="flex h-full w-[var(--search-width)] shrink-0 flex-col rounded-[var(--radius-32)] bg-[var(--panel-surface)] px-[var(--space-24)] pb-[var(--space-0)] pt-[var(--space-32)] backdrop-blur-[var(--blur-soft)]">
+            <section ref={setLibraryBoundary} className="flex h-full min-h-0 w-[var(--search-width)] shrink-0 flex-col rounded-[var(--radius-32)] bg-[var(--panel-surface)] px-[var(--space-24)] pb-[var(--space-0)] pt-[var(--space-32)] backdrop-blur-[var(--blur-soft)]">
               <div className="flex min-h-[var(--size-32)] w-full items-center justify-between gap-[var(--space-16)]">
                 <div className="flex items-baseline gap-[var(--space-8)]">
                   <h1 className="type-title text-[var(--content-primary)]">Library</h1>
@@ -1162,7 +1258,7 @@ export default function Home() {
                   collisionBoundary={libraryBoundary ?? undefined}
                   trigger={
                     <button
-                      className="inline-flex h-[var(--size-24)] items-center gap-[var(--space-8)] rounded-[var(--radius-8)] px-[var(--space-4)] type-16 text-[var(--content-muted)] transition-colors duration-150 ease-out hover:text-[var(--content-primary)] data-[popup-open]:text-[var(--content-primary)]"
+                      className="inline-flex h-[var(--size-24)] items-center gap-[var(--space-8)] rounded-[var(--radius-8)] px-[var(--space-4)] type-16 text-[var(--content-muted)] transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-[var(--content-primary)] data-[popup-open]:text-[var(--content-primary)]"
                       type="button"
                     >
                       {activeSortOption.label}
@@ -1223,11 +1319,14 @@ export default function Home() {
               <div className="relative mt-[var(--space-20)] min-h-0 w-full flex-1">
                 <div
                   ref={libraryScrollRef}
-                  className="library-scroll h-full min-h-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain"
+                  className={cn(
+                    "library-scroll h-full min-h-0 w-full overflow-x-hidden overscroll-contain",
+                    hasLibraryCards ? "overflow-y-auto" : "overflow-y-hidden"
+                  )}
                   onScroll={updateLibraryScrollbar}
                 >
-                  {orderedLinks.length > 0 ? (
-                    <div className="library-card-stack">
+                  {hasLibraryCards ? (
+                    <div ref={libraryCardStackRef} className="library-card-stack">
                       {orderedLinks.map((link) => (
                         <div
                           key={link.id}
@@ -1238,7 +1337,7 @@ export default function Home() {
                             title={link.title}
                             source={link.domain}
                             url={link.domain}
-                            description={link.description}
+                            description={link.savedReason ?? link.description}
                             tags={link.tags}
                             savedAt={link.addedDate}
                             faviconSrc={link.faviconSrc}
@@ -1259,69 +1358,15 @@ export default function Home() {
                     </div>
                   ) : (
                     <div className="flex h-full min-h-[calc(var(--size-48)*6)] flex-col items-center justify-center gap-[var(--space-24)] px-[var(--space-24)] py-[var(--space-48)] text-center motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
-                      <svg
+                      <Image
+                        alt=""
                         aria-hidden="true"
-                        className="h-[calc(var(--size-48)*4+var(--space-24))] w-[calc(var(--size-48)*4+var(--space-24))] overflow-visible"
-                        fill="none"
-                        viewBox="0 0 216 216"
-                      >
-                        <defs>
-                          <linearGradient id="empty-state-surface" x1="40" x2="174" y1="74" y2="174" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="var(--white)" stopOpacity="0.96" />
-                            <stop offset="1" stopColor="var(--control-surface)" stopOpacity="0.78" />
-                          </linearGradient>
-                          <linearGradient id="empty-state-muted-surface" x1="46" x2="168" y1="42" y2="132" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="var(--white)" stopOpacity="0.54" />
-                            <stop offset="1" stopColor="var(--control-surface)" stopOpacity="0.34" />
-                          </linearGradient>
-                          <linearGradient id="empty-state-accent" x1="58" x2="104" y1="106" y2="154" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="var(--accent-soft)" />
-                            <stop offset="1" stopColor="var(--accent-start)" />
-                          </linearGradient>
-                          <radialGradient id="empty-state-lens" cx="0" cy="0" r="1" gradientTransform="matrix(42 38 -38 42 132 90)" gradientUnits="userSpaceOnUse">
-                            <stop stopColor="var(--white)" stopOpacity="0.94" />
-                            <stop offset="1" stopColor="var(--control-surface)" stopOpacity="0.72" />
-                          </radialGradient>
-                          <filter id="empty-state-card-shadow" colorInterpolationFilters="sRGB" x="12" y="28" width="184" height="166">
-                            <feDropShadow dx="0" dy="18" stdDeviation="15" floodColor="var(--accent-start)" floodOpacity="0.11" />
-                            <feDropShadow dx="0" dy="3" stdDeviation="5" floodColor="var(--content-primary)" floodOpacity="0.05" />
-                          </filter>
-                          <filter id="empty-state-lens-shadow" colorInterpolationFilters="sRGB" x="74" y="38" width="128" height="132">
-                            <feDropShadow dx="0" dy="16" stdDeviation="12" floodColor="var(--accent-start)" floodOpacity="0.16" />
-                            <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="var(--content-primary)" floodOpacity="0.08" />
-                          </filter>
-                        </defs>
-                        <circle cx="42" cy="48" r="3" fill="var(--accent-start)" opacity="0.2" />
-                        <circle cx="174" cy="60" r="5" fill="var(--content-muted)" opacity="0.12" />
-                        <circle cx="42" cy="170" r="4" fill="var(--content-muted)" opacity="0.11" />
-                        <path d="M164 148c5-2 8-6 9-12 1 6 4 10 9 12-5 2-8 6-9 12-1-6-4-10-9-12Z" fill="var(--accent-start)" opacity="0.2" />
-                        <g opacity="0.64" transform="rotate(-4 106 78)">
-                          <rect x="48" y="46" width="120" height="64" rx="20" fill="url(#empty-state-muted-surface)" stroke="var(--white)" strokeOpacity="0.54" strokeWidth="2" />
-                          <rect x="68" y="64" width="26" height="26" rx="9" fill="var(--accent-start)" opacity="0.16" />
-                          <rect x="104" y="65" width="46" height="7" rx="3.5" fill="var(--skeleton-muted)" opacity="0.56" />
-                          <rect x="104" y="81" width="34" height="7" rx="3.5" fill="var(--skeleton-muted-soft)" opacity="0.72" />
-                        </g>
-                        <g filter="url(#empty-state-card-shadow)">
-                          <rect x="30" y="94" width="136" height="82" rx="24" fill="url(#empty-state-surface)" stroke="var(--white)" strokeOpacity="0.86" strokeWidth="2" />
-                          <rect x="50" y="114" width="38" height="38" rx="13" fill="url(#empty-state-accent)" opacity="0.46" />
-                          <path d="m66 132-5 5c-4 4-10 4-14 0s-4-10 0-14l5-5" stroke="var(--white)" strokeLinecap="round" strokeWidth="4" opacity="0.78" />
-                          <path d="m69 124 5-5c4-4 10-4 14 0s4 10 0 14l-5 5" stroke="var(--white)" strokeLinecap="round" strokeWidth="4" opacity="0.94" />
-                          <rect x="100" y="113" width="44" height="7" rx="3.5" fill="var(--skeleton-muted)" opacity="0.9" />
-                          <rect x="100" y="130" width="34" height="7" rx="3.5" fill="var(--skeleton-muted-soft)" opacity="0.94" />
-                          <rect x="50" y="160" width="34" height="10" rx="5" fill="var(--tag-surface)" opacity="0.92" />
-                          <rect x="92" y="160" width="42" height="10" rx="5" fill="var(--tag-surface)" opacity="0.7" />
-                        </g>
-                        <g filter="url(#empty-state-lens-shadow)">
-                          <circle cx="132" cy="88" r="39" fill="url(#empty-state-lens)" stroke="var(--white)" strokeOpacity="0.9" strokeWidth="5" />
-                          <path d="M106 78c7-13 23-20 38-14" stroke="var(--white)" strokeLinecap="round" strokeOpacity="0.58" strokeWidth="7" />
-                          <circle cx="132" cy="88" r="27" stroke="var(--content-muted)" strokeOpacity="0.18" strokeWidth="4" />
-                          <path d="m123 91-6 6c-5 5-13 5-18 0s-5-13 0-18l6-6" stroke="var(--accent-start)" strokeLinecap="round" strokeWidth="6" opacity="0.54" />
-                          <path d="m126 82 6-6c5-5 13-5 18 0s5 13 0 18l-6 6" stroke="var(--accent-start)" strokeLinecap="round" strokeWidth="6" opacity="0.82" />
-                          <path d="m116 92 28-28" stroke="var(--accent-start)" strokeLinecap="round" strokeWidth="5" opacity="0.62" />
-                          <path d="m160 116 28 28" stroke="var(--accent-start)" strokeLinecap="round" strokeWidth="14" />
-                          <path d="m154 110 12 12" stroke="var(--accent-soft)" strokeLinecap="round" strokeWidth="12" opacity="0.82" />
-                        </g>
-                      </svg>
+                        className="h-[240px] w-[240px] max-w-full object-contain"
+                        height={502}
+                        priority
+                        src="/keepnoto/empty%20state.png"
+                        width={502}
+                      />
                       <div className="flex max-w-[calc(var(--size-48)*7)] flex-col items-center gap-[var(--space-8)]">
                         <p className="type-16-semibold text-[var(--content-primary)]">{emptyLibraryTitle}</p>
                         <p className="type-16 text-[var(--content-muted)]">{emptyLibraryDescription}</p>
@@ -1329,7 +1374,7 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                {libraryScrollState.visible ? (
+                {hasLibraryCards && libraryScrollState.visible ? (
                   <div
                     ref={libraryScrollbarTrackRef}
                     aria-hidden="true"
@@ -1349,7 +1394,7 @@ export default function Home() {
             </section>
           </div>
 
-          <section className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-width)] max-w-[var(--layout-detail-width)] shrink-0 self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
+          <section className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
             <div className="flex w-full flex-col gap-[var(--space-24)]">
               <div className="flex h-[var(--size-48)] w-full items-center justify-between gap-[var(--space-24)]">
                 <h2 className="min-w-0 flex-1 truncate type-title text-[var(--content-primary)]">
@@ -1386,18 +1431,26 @@ export default function Home() {
                 externalHref={selectedLink.href}
               />
 
-              <SavedReason reason={selectedLink.savedReason ?? selectedLink.description} />
+              {selectedLink.savedReason ? <SavedReason reason={selectedLink.savedReason} /> : null}
 
             </div>
 
-            <div className="mt-[var(--space-40)] w-full">
+            <div className="mt-[var(--space-24)] w-full">
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-[var(--space-32)]">
                 <div className="flex min-w-0 flex-col gap-[var(--space-24)]">
                   <div className="flex min-w-0 flex-col gap-[var(--space-8)]">
                     <p className="type-label text-[var(--content-muted)]">Tags</p>
-                    <div className="relative flex h-[var(--size-24)] min-w-0 items-center gap-[var(--space-8)] overflow-visible">
+                    <div ref={detailTagsRowRef} className="relative flex h-[var(--size-24)] min-w-0 items-center gap-[var(--space-8)] overflow-visible">
                       {selectedLink.tags.slice(0, detailVisibleTagCount).map((tag) => (
-                        <Tag key={tag} aria-label={`Filter library by ${tag}`} className="shrink-0" onClick={() => selectTab(tag)}>{tag}</Tag>
+                        <Tag
+                          key={tag}
+                          aria-label={`Filter library by ${tag}`}
+                          className="shrink-0"
+                          data-detail-tag-item="true"
+                          onClick={() => selectTab(tag)}
+                        >
+                          {tag}
+                        </Tag>
                       ))}
                       {hiddenDetailTags.length > 0 ? (
                         <Tooltip
@@ -1413,13 +1466,23 @@ export default function Home() {
                           }
                           side="top"
                         >
-                          <Tag aria-label={`${hiddenDetailTags.length} more tags`} className="shrink-0">
+                          <Tag aria-label={`${hiddenDetailTags.length} more tags`} className="shrink-0" data-detail-hidden-tags="true">
                             +{hiddenDetailTags.length}
                           </Tag>
                         </Tooltip>
                       ) : null}
+                      <Tag
+                        add
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-0 top-0 shrink-0 opacity-0"
+                        data-detail-add-tag-measure="true"
+                        disabled
+                        tabIndex={-1}
+                      >
+                        + Add tag
+                      </Tag>
                       <Tag add aria-label="Add tag" className="shrink-0" onClick={() => openEditDialog(selectedLink, { openTags: true })}>
-                        {hiddenDetailTags.length > 0 ? "+" : "+ Add tag"}
+                        {detailAddTagCompact ? "+" : "+ Add tag"}
                       </Tag>
                     </div>
                   </div>
