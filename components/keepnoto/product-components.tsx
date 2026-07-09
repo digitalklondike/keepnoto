@@ -455,6 +455,12 @@ type MediaAssetImageProps = {
   requireReadable?: boolean;
 };
 
+type MediaAssetProbeProps = {
+  src: string;
+  onLoad: (image: HTMLImageElement) => void;
+  onError: () => void;
+};
+
 function getProxiedMediaSrc(src: string) {
   try {
     const url = new URL(src);
@@ -545,10 +551,27 @@ function analyzeImagePresentation(image: HTMLImageElement) {
     readable: hasSolidEdges || (visiblePixels >= 10 && readablePixels / visiblePixels >= 0.18),
   };
 }
+function MediaAssetProbe({ src, onLoad, onError }: MediaAssetProbeProps) {
+  const proxiedSrc = React.useMemo(() => getProxiedMediaSrc(src), [src]);
+
+  return (
+    <img
+      src={proxiedSrc}
+      alt=""
+      aria-hidden="true"
+      className="sr-only"
+      decoding="async"
+      onLoad={(event) => onLoad(event.currentTarget)}
+      onError={onError}
+    />
+  );
+}
+
 function MediaAssetImage({ src, alt, fit = "contain", onError, requireReadable }: MediaAssetImageProps) {
   const [sampledBackground, setSampledBackground] = React.useState<{ src: string; color?: string }>();
   const proxiedSrc = React.useMemo(() => getProxiedMediaSrc(src), [src]);
   const backgroundColor = sampledBackground?.src === proxiedSrc ? sampledBackground.color : undefined;
+
 
   return (
     <>
@@ -557,6 +580,8 @@ function MediaAssetImage({ src, alt, fit = "contain", onError, requireReadable }
         src={proxiedSrc}
         alt={alt}
         className={cn("relative z-10 size-full", fit === "cover" ? "object-cover" : "object-contain")}
+        decoding="async"
+        loading="lazy"
         onError={onError}
         onLoad={(event) => {
           try {
@@ -576,6 +601,7 @@ function MediaAssetImage({ src, alt, fit = "contain", onError, requireReadable }
     </>
   );
 }
+
 export type LinkLogoProps = {
   src?: string;
   alt?: string;
@@ -660,7 +686,6 @@ export function LinkPreviewCard({
   const [unsafePreviewSrc, setUnsafePreviewSrc] = React.useState<string | undefined>();
   const [failedLogoSrc, setFailedLogoSrc] = React.useState<string | undefined>();
   const fallback = (logoFallback ?? title).slice(0, 1).toUpperCase();
-  const previewMeasureSrc = previewImageSrc ? getProxiedMediaSrc(previewImageSrc) : undefined;
   const previewAssetSrc =
     previewImageSrc && safePreviewSrc === previewImageSrc && failedPreviewSrc !== previewImageSrc ? previewImageSrc : undefined;
   const shouldMeasurePreviewImage = Boolean(
@@ -679,14 +704,11 @@ export function LinkPreviewCard({
         className
       )}
     >
-      {previewMeasureSrc && shouldMeasurePreviewImage ? (
-        <img
-          src={previewMeasureSrc}
-          alt=""
-          aria-hidden="true"
-          className="sr-only"
-          onLoad={(event) => {
-            const { naturalHeight, naturalWidth } = event.currentTarget;
+      {previewImageSrc && shouldMeasurePreviewImage ? (
+        <MediaAssetProbe
+          src={previewImageSrc}
+          onLoad={(image) => {
+            const { naturalHeight, naturalWidth } = image;
             const aspectRatio = naturalHeight > 0 ? naturalWidth / naturalHeight : 0;
 
             if (aspectRatio >= COMPACT_PREVIEW_MIN_ASPECT_RATIO && aspectRatio <= COMPACT_PREVIEW_MAX_ASPECT_RATIO) {
@@ -701,12 +723,12 @@ export function LinkPreviewCard({
 
       <div
         className="relative flex size-[var(--preview-media-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-16)]"
-        style={{ backgroundColor: previewAssetSrc || logoAssetSrc ? undefined : logoColor, color: "var(--white)" }}
+        style={{ backgroundColor: previewAssetSrc ? undefined : logoColor, color: "var(--white)" }}
       >
         {previewAssetSrc ? (
           <MediaAssetImage src={previewAssetSrc} alt={previewImageAlt} fit="cover" onError={() => setFailedPreviewSrc(previewAssetSrc)} />
         ) : logoAssetSrc ? (
-          <MediaAssetImage src={logoAssetSrc} alt={logoAlt} requireReadable onError={() => setFailedLogoSrc(logoAssetSrc)} />
+          <MediaAssetImage src={logoAssetSrc} alt={logoAlt} onError={() => setFailedLogoSrc(logoAssetSrc)} />
         ) : fallback ? (
           <span className="type-logo-letter">{fallback}</span>
         ) : (
@@ -743,15 +765,15 @@ export function LinkPreviewCard({
 export type SavedReasonProps = React.HTMLAttributes<HTMLElement> & {
   reason: string;
   label?: string;
-  maxLength?: number;
+  maxLength?: number | null;
 };
 
 const SAVED_REASON_MAX_LENGTH = 220;
 
-function truncateSavedReason(reason: string, maxLength: number) {
+function truncateSavedReason(reason: string, maxLength?: number | null) {
   const normalizedReason = reason.trim();
 
-  if (normalizedReason.length <= maxLength) {
+  if (typeof maxLength !== "number" || normalizedReason.length <= maxLength) {
     return normalizedReason;
   }
 

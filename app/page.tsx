@@ -44,6 +44,9 @@ const filterTabs = [
 
 const SAVED_REASON_FIELD_LABEL = "Why I saved this";
 const SAVED_REASON_PLACEHOLDER = "Why will this matter later?";
+const LIBRARY_STORAGE_KEY = "keepnoto.library.v1";
+const PROFILE_STORAGE_KEY = "keepnoto.profile.v1";
+const MAX_AVATAR_FILE_BYTES = 1_500_000;
 
 const sortOptions = [
   { id: "recent", label: "Recently saved" },
@@ -74,6 +77,12 @@ type SavedLink = {
   favorite?: boolean;
 };
 
+type PersistedLibraryState = {
+  availableTagValues?: string[];
+  favoriteLinkIds?: string[];
+  links?: SavedLink[];
+};
+
 type LinkPreviewMetadata = {
   ok: boolean;
   url?: string;
@@ -87,7 +96,21 @@ type LinkPreviewMetadata = {
   type?: string;
 };
 
+type UserProfile = {
+  name: string;
+  email: string;
+  avatarDataUrl?: string;
+};
 
+const DEFAULT_USER_PROFILE: UserProfile = {
+  name: "Nora Keep",
+  email: "nora@keepnoto.app",
+};
+
+const DEFAULT_PASSWORD_VISIBILITY = {
+  newPassword: false,
+  confirmPassword: false,
+};
 
 const knownPlatformNames: Record<string, string> = {
   "github.com": "GitHub",
@@ -351,6 +374,109 @@ function SocialLogo({ name }: { name: SocialLogoName }) {
 }
 
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isSavedLink(value: unknown): value is SavedLink {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const requiredStringKeys: Array<keyof SavedLink> = [
+    "id",
+    "title",
+    "domain",
+    "source",
+    "description",
+    "previewTitle",
+    "previewDescription",
+    "href",
+    "type",
+    "addedDate",
+    "logoColor",
+  ];
+
+  return (
+    requiredStringKeys.every((key) => typeof value[key] === "string") &&
+    (value.collection === null || typeof value.collection === "string") &&
+    isStringArray(value.tags) &&
+    (value.savedReason === undefined || typeof value.savedReason === "string") &&
+    (value.faviconSrc === undefined || typeof value.faviconSrc === "string") &&
+    (value.previewLogoSrc === undefined || typeof value.previewLogoSrc === "string") &&
+    (value.metadataImageSrc === undefined || typeof value.metadataImageSrc === "string") &&
+    (value.favorite === undefined || typeof value.favorite === "boolean")
+  );
+}
+
+function isUserProfile(value: unknown): value is UserProfile {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.email === "string" &&
+    (value.avatarDataUrl === undefined || typeof value.avatarDataUrl === "string")
+  );
+}
+
+function readPersistedProfileState() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const rawState = window.localStorage.getItem(PROFILE_STORAGE_KEY);
+
+    if (!rawState) {
+      return undefined;
+    }
+
+    const parsedState: unknown = JSON.parse(rawState);
+
+    return isUserProfile(parsedState) ? parsedState : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function getProfileInitials(profile: UserProfile) {
+  const source = profile.name.trim() || profile.email.trim() || "User";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const initials = parts.length > 1 ? `${parts[0][0] ?? ""}${parts[1][0] ?? ""}` : source.slice(0, 2);
+
+  return initials.toUpperCase();
+}
+
+function readPersistedLibraryState() {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const rawState = window.localStorage.getItem(LIBRARY_STORAGE_KEY);
+
+    if (!rawState) {
+      return undefined;
+    }
+
+    const parsedState: unknown = JSON.parse(rawState);
+
+    if (!isRecord(parsedState)) {
+      return undefined;
+    }
+
+    const links = Array.isArray(parsedState.links) && parsedState.links.every(isSavedLink) ? parsedState.links : undefined;
+    const favoriteLinkIds = isStringArray(parsedState.favoriteLinkIds) ? parsedState.favoriteLinkIds : undefined;
+    const availableTagValues = isStringArray(parsedState.availableTagValues) ? parsedState.availableTagValues : undefined;
+
+    return { availableTagValues, favoriteLinkIds, links } satisfies PersistedLibraryState;
+  } catch {
+    return undefined;
+  }
+}
 export default function Home() {
   const [libraryBoundary, setLibraryBoundary] = React.useState<HTMLElement | null>(null);
   const [links, setLinks] = React.useState<SavedLink[]>(savedLinks);
@@ -360,15 +486,25 @@ export default function Home() {
   const [activeTab, setActiveTab] = React.useState(filterTabs[0].label);
   const [searchQuery, setSearchQuery] = React.useState("");
   const searchInputRef = React.useRef<HTMLInputElement>(null);
+  const avatarInputRef = React.useRef<HTMLInputElement>(null);
   const [sortOptionId, setSortOptionId] = React.useState<SortOptionId>("recent");
   const [selectedLinkId, setSelectedLinkId] = React.useState(savedLinks[0].id);
   const [favoriteLinkIds, setFavoriteLinkIds] = React.useState<Set<string>>(() => new Set());
+  const [libraryStorageReady, setLibraryStorageReady] = React.useState(false);
   const [favoriteTransitionLinkId, setFavoriteTransitionLinkId] = React.useState<string | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
   const [saveDialogTagsOpen, setSaveDialogTagsOpen] = React.useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [shareDialogOpen, setShareDialogOpen] = React.useState(false);
   const [shareCopyState, setShareCopyState] = React.useState<"idle" | "copied" | "failed">("idle");
+  const [profile, setProfile] = React.useState<UserProfile>(DEFAULT_USER_PROFILE);
+  const [profileNameDraft, setProfileNameDraft] = React.useState(DEFAULT_USER_PROFILE.name);
+  const [profileDialogOpen, setProfileDialogOpen] = React.useState(false);
+  const [avatarError, setAvatarError] = React.useState<string | null>(null);
+  const [profileMode, setProfileMode] = React.useState<"details" | "password">("details");
+  const [passwordDraft, setPasswordDraft] = React.useState({ newPassword: "", confirmPassword: "" });
+  const [passwordVisibility, setPasswordVisibility] = React.useState(DEFAULT_PASSWORD_VISIBILITY);
+  const [passwordStatus, setPasswordStatus] = React.useState<{ type: "error" | "success"; message: string } | null>(null);
   const [saveDialogMode, setSaveDialogMode] = React.useState<"create" | "edit">("create");
   const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
   const [isSavingLink, setIsSavingLink] = React.useState(false);
@@ -387,6 +523,74 @@ export default function Home() {
     thumbTop: 0,
     visible: false,
   });
+
+  React.useEffect(() => {
+    const persistedState = readPersistedLibraryState();
+    const persistedLinks = persistedState?.links;
+    const persistedFavoriteLinkIds = persistedState?.favoriteLinkIds;
+    const persistedAvailableTagValues = persistedState?.availableTagValues;
+
+    queueMicrotask(() => {
+      if (persistedLinks) {
+        setLinks(persistedLinks);
+
+        if (persistedLinks[0]) {
+          setSelectedLinkId(persistedLinks[0].id);
+        }
+      }
+
+      if (persistedFavoriteLinkIds) {
+        setFavoriteLinkIds(new Set(persistedFavoriteLinkIds));
+      }
+
+      if (persistedAvailableTagValues) {
+        setAvailableTagValues((currentValues) =>
+          Array.from(new Set([...currentValues, ...persistedAvailableTagValues.map(normalizeTagValue).filter(Boolean)]))
+        );
+      }
+
+      setLibraryStorageReady(true);
+    });
+  }, []);
+
+
+  React.useEffect(() => {
+    if (!libraryStorageReady) {
+      return;
+    }
+
+    const stateToPersist: PersistedLibraryState = {
+      availableTagValues,
+      favoriteLinkIds: Array.from(favoriteLinkIds),
+      links,
+    };
+
+    try {
+      window.localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify(stateToPersist));
+    } catch {
+      // Saving should never break the in-memory library flow.
+    }
+  }, [availableTagValues, favoriteLinkIds, libraryStorageReady, links]);
+
+  React.useEffect(() => {
+    const persistedProfile = readPersistedProfileState();
+
+    queueMicrotask(() => {
+      if (persistedProfile) {
+        setProfile(persistedProfile);
+        setProfileNameDraft(persistedProfile.name);
+      }
+    });
+  }, []);
+
+  React.useEffect(() => {
+    try {
+      window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    } catch {
+      // Profile settings should never break the app shell.
+    }
+  }, [profile]);
+
 
   const tagOptions = React.useMemo(
     () => toTagOptions([...availableTagValues, ...links.flatMap((link) => link.tags)]),
@@ -488,7 +692,7 @@ export default function Home() {
     () => orderLinksByFavorite(sortedLinks, favoriteLinkIds),
     [sortedLinks, favoriteLinkIds]
   );
-  const hasLibraryCards = orderedLinks.length > 0;
+  const hasLibraryCards = libraryStorageReady && orderedLinks.length > 0;
   const activeSortOption = sortOptions.find((option) => option.id === sortOptionId) ?? sortOptions[0];
   const selectedLink = React.useMemo(
     () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? links[0] ?? savedLinks[0],
@@ -514,8 +718,6 @@ export default function Home() {
     { label: "Facebook", logo: "facebook" as const, href: `https://www.facebook.com/sharer/sharer.php?u=${encodedShareUrl}` },
     { label: "LinkedIn", logo: "linkedin" as const, href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedShareUrl}` },
   ];
-  const hydratedPreviewIdsRef = React.useRef<Set<string>>(new Set());
-  const pendingPreviewIdsRef = React.useRef<Set<string>>(new Set());
 
   React.useEffect(() => {
     const rowElement = detailTagsRowRef.current;
@@ -558,65 +760,6 @@ export default function Home() {
 
     return () => resizeObserver.disconnect();
   }, [hiddenDetailTags.length, selectedLink.id, selectedLink.tags]);
-  React.useEffect(() => {
-    let cancelled = false;
-    const pendingPreviewIds = pendingPreviewIdsRef.current;
-    const requestedPreviewIds = new Set<string>();
-
-    for (const link of links) {
-
-      if (hydratedPreviewIdsRef.current.has(link.id) || pendingPreviewIds.has(link.id)) {
-        continue;
-      }
-
-      requestedPreviewIds.add(link.id);
-      pendingPreviewIds.add(link.id);
-
-      void fetchLinkPreviewMetadata(link.href)
-        .then((metadata) => {
-          pendingPreviewIds.delete(link.id);
-
-          if (cancelled || !metadata) {
-            return;
-          }
-
-          hydratedPreviewIdsRef.current.add(link.id);
-
-          const metadataTitle = metadata.title?.trim();
-          const metadataDescription = metadata.description?.trim();
-          const metadataSiteName = metadata.siteName?.trim();
-          const metadataIcon = metadata.icon?.trim();
-          const metadataLogo = metadata.logo?.trim();
-          const metadataImage = metadata.image?.trim();
-
-          setLinks((currentLinks) =>
-            currentLinks.map((currentLink) =>
-              currentLink.id === link.id
-                ? {
-                    ...currentLink,
-                    previewTitle: metadataTitle ?? metadataSiteName ?? currentLink.previewTitle,
-                    previewDescription: metadataDescription ?? currentLink.previewDescription,
-                    faviconSrc: metadataIcon ?? currentLink.faviconSrc,
-                    previewLogoSrc: metadataLogo ?? metadataIcon ?? currentLink.previewLogoSrc,
-                    metadataImageSrc: metadataImage ?? currentLink.metadataImageSrc,
-                  }
-                : currentLink
-            )
-          );
-        })
-        .catch(() => {
-          pendingPreviewIds.delete(link.id);
-        });
-    }
-
-    return () => {
-      cancelled = true;
-
-      for (const id of requestedPreviewIds) {
-        pendingPreviewIds.delete(id);
-      }
-    };
-  }, [links]);
   const updateLibraryScrollbar = React.useCallback(() => {
     const element = libraryScrollRef.current;
 
@@ -754,6 +897,97 @@ export default function Home() {
   }, [hasLibraryCards, orderedLinks.length, updateLibraryScrollbar]);
 
 
+  const handleProfileNameSave = () => {
+    const nextName = profileNameDraft.trim();
+
+    if (!nextName) {
+      setProfileNameDraft(profile.name);
+      return;
+    }
+
+    setProfile((currentProfile) => ({ ...currentProfile, name: nextName }));
+  };
+
+  const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = "";
+
+    if (!file) {
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setAvatarError("Choose an image file.");
+      return;
+    }
+
+    if (file.size > MAX_AVATAR_FILE_BYTES) {
+      setAvatarError("Avatar image must be under 1.5 MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.addEventListener("load", () => {
+      if (typeof reader.result === "string") {
+        setProfile((currentProfile) => ({ ...currentProfile, avatarDataUrl: reader.result as string }));
+        setAvatarError(null);
+      }
+    });
+    reader.addEventListener("error", () => setAvatarError("Could not read this image."));
+    reader.readAsDataURL(file);
+  };
+
+  const togglePasswordVisibility = (field: keyof typeof DEFAULT_PASSWORD_VISIBILITY) => {
+    setPasswordVisibility((currentVisibility) => ({ ...currentVisibility, [field]: !currentVisibility[field] }));
+  };
+
+  const startPasswordChange = () => {
+    setPasswordDraft({ newPassword: "", confirmPassword: "" });
+    setPasswordVisibility(DEFAULT_PASSWORD_VISIBILITY);
+    setPasswordStatus(null);
+    setProfileMode("password");
+  };
+
+  const handleProfileDialogOpenChange = (nextOpen: boolean) => {
+    setProfileDialogOpen(nextOpen);
+
+    if (!nextOpen) {
+      setProfileMode("details");
+      setProfileNameDraft(profile.name);
+      setPasswordDraft({ newPassword: "", confirmPassword: "" });
+      setPasswordVisibility(DEFAULT_PASSWORD_VISIBILITY);
+      setPasswordStatus(null);
+      setAvatarError(null);
+    }
+  };
+
+  const handleProfileSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (profileMode === "password") {
+      if (passwordDraft.newPassword.length < 8) {
+        setPasswordStatus({ type: "error", message: "New password must be at least 8 characters." });
+        return;
+      }
+
+      if (passwordDraft.newPassword !== passwordDraft.confirmPassword) {
+        setPasswordStatus({ type: "error", message: "Passwords do not match." });
+        return;
+      }
+
+      setPasswordDraft({ newPassword: "", confirmPassword: "" });
+      setPasswordVisibility(DEFAULT_PASSWORD_VISIBILITY);
+      setPasswordStatus({ type: "success", message: "Password updated." });
+      setProfileMode("details");
+      return;
+    }
+
+    handleProfileNameSave();
+    setProfileDialogOpen(false);
+  };
+
+  
   const resetSaveDialog = () => {
     setDraftTitle("");
     setDraftUrl("");
@@ -870,8 +1104,6 @@ export default function Home() {
         savedReason: savedReason || undefined,
       };
 
-      hydratedPreviewIdsRef.current.delete(updatedLink.id);
-      pendingPreviewIdsRef.current.delete(updatedLink.id);
       setLinks((currentLinks) => currentLinks.map((link) => (link.id === updatedLink.id ? updatedLink : link)));
       setSelectedLinkId(updatedLink.id);
       setSaveDialogOpen(false);
@@ -939,8 +1171,6 @@ export default function Home() {
     const remainingLinks = links.filter((link) => link.id !== deletedLinkId);
 
     nextFavoriteLinkIds.delete(deletedLinkId);
-    hydratedPreviewIdsRef.current.delete(deletedLinkId);
-    pendingPreviewIdsRef.current.delete(deletedLinkId);
 
     const linksForCurrentTab = activeTab === "All links" ? remainingLinks : remainingLinks.filter((link) => link.tags.includes(activeTab));
     const shouldResetTab = activeTab !== "All links" && linksForCurrentTab.length === 0;
@@ -1080,7 +1310,6 @@ export default function Home() {
 
         <Dialog open={saveDialogOpen} onOpenChange={handleSaveDialogOpenChange}>
           <DialogContent
-            showCloseButton={false}
             className="flex w-[var(--save-link-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)] sm:!max-w-[var(--save-link-dialog-width)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
@@ -1119,7 +1348,12 @@ export default function Home() {
               </label>
 
               <div className="flex flex-col gap-[var(--space-8)]">
-                <span className="type-label text-[var(--content-muted)]">{SAVED_REASON_FIELD_LABEL}</span>
+                <span className="flex items-center justify-between gap-[var(--space-16)]">
+                  <span className="type-label text-[var(--content-muted)]">{SAVED_REASON_FIELD_LABEL}</span>
+                  <span aria-live="polite" className="shrink-0 type-12-semibold text-[var(--content-muted)]">
+                    {draftSavedReason.length}/{SAVED_REASON_INPUT_MAX_LENGTH}
+                  </span>
+                </span>
                 <LargeTextField
                   aria-label={SAVED_REASON_FIELD_LABEL}
                   maxLength={SAVED_REASON_INPUT_MAX_LENGTH}
@@ -1158,7 +1392,6 @@ export default function Home() {
 
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent
-            showCloseButton={false}
             className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
@@ -1182,7 +1415,6 @@ export default function Home() {
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
           <DialogContent
             initialFocus={false}
-            showCloseButton={false}
             className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
@@ -1226,12 +1458,158 @@ export default function Home() {
               <span aria-hidden="true" className="h-px flex-1 bg-[var(--divider-subtle)]" />
             </div>
 
-            <Button className="h-[var(--size-48)] w-full" onClick={() => setShareDialogOpen(false)} tone="secondary" type="button">
-              Close
-            </Button>
           </DialogContent>
         </Dialog>
-        <div className="mt-[var(--space-24)] grid min-h-0 flex-1 w-full overflow-hidden grid-cols-[var(--layout-left-width)_var(--layout-detail-width)] gap-[var(--space-24)]">
+        <Dialog open={profileDialogOpen} onOpenChange={handleProfileDialogOpenChange}>
+          <DialogContent
+            className="flex w-[var(--profile-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
+          >
+            <div className="flex flex-col gap-[var(--space-8)] pr-[var(--space-32)]">
+              <DialogTitle className="type-title text-[var(--content-primary)]">
+                {profileMode === "password" ? "Change password" : "Profile"}
+              </DialogTitle>
+              <DialogDescription className="type-16 text-[var(--content-muted)]">
+                {profileMode === "password" ? "Choose a new password for your Keepnoto account." : "Manage your account details."}
+              </DialogDescription>
+            </div>
+
+            <form className="flex flex-col gap-[var(--space-20)]" onSubmit={handleProfileSubmit}>
+              {profileMode === "password" ? (
+                <>
+                  <label className="flex flex-col gap-[var(--space-8)]">
+                    <span className="type-label text-[var(--content-muted)]">New password</span>
+                    <TextField
+                      autoComplete="new-password"
+                      className="w-full"
+                      icon={Icons.lock}
+                      onChange={(event) => setPasswordDraft((currentDraft) => ({ ...currentDraft, newPassword: event.target.value }))}
+                      endAdornment={
+                        <IconButton
+                          aria-label={passwordVisibility.newPassword ? "Hide new password" : "Show new password"}
+                          icon={passwordVisibility.newPassword ? Icons.eyeOff : Icons.eye}
+                          iconSize={18}
+                          label={passwordVisibility.newPassword ? "Hide new password" : "Show new password"}
+                          mode="plain"
+                          onClick={() => togglePasswordVisibility("newPassword")}
+                          tooltip={false}
+                          type="button"
+                        />
+                      }
+                      type={passwordVisibility.newPassword ? "text" : "password"}
+                      value={passwordDraft.newPassword}
+                    />
+                  </label>
+
+                  <label className="flex flex-col gap-[var(--space-8)]">
+                    <span className="type-label text-[var(--content-muted)]">Confirm password</span>
+                    <TextField
+                      autoComplete="new-password"
+                      className="w-full"
+                      icon={Icons.lock}
+                      onChange={(event) => setPasswordDraft((currentDraft) => ({ ...currentDraft, confirmPassword: event.target.value }))}
+                      endAdornment={
+                        <IconButton
+                          aria-label={passwordVisibility.confirmPassword ? "Hide password confirmation" : "Show password confirmation"}
+                          icon={passwordVisibility.confirmPassword ? Icons.eyeOff : Icons.eye}
+                          iconSize={18}
+                          label={passwordVisibility.confirmPassword ? "Hide password confirmation" : "Show password confirmation"}
+                          mode="plain"
+                          onClick={() => togglePasswordVisibility("confirmPassword")}
+                          tooltip={false}
+                          type="button"
+                        />
+                      }
+                      type={passwordVisibility.confirmPassword ? "text" : "password"}
+                      value={passwordDraft.confirmPassword}
+                    />
+                  </label>
+
+                  {passwordStatus?.type === "error" ? (
+                    <p aria-live="polite" className="type-12 text-[var(--danger)]">{passwordStatus.message}</p>
+                  ) : null}
+
+                  <div className="flex flex-col gap-[var(--space-8)] pt-[var(--space-4)]">
+                    <Button className="h-[var(--size-48)] w-full" onClick={() => { setPasswordStatus(null); setPasswordDraft({ newPassword: "", confirmPassword: "" }); setPasswordVisibility(DEFAULT_PASSWORD_VISIBILITY); setProfileMode("details"); }} tone="secondary" type="button">
+                      Back to profile
+                    </Button>
+                    <Button className="h-[var(--size-48)] w-full" disabled={!passwordDraft.newPassword || !passwordDraft.confirmPassword} tone="primary" type="submit">
+                      <Icon icon={Icons.check} size={20} strokeWidth={2} aria-hidden="true" />
+                      Save password
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <input ref={avatarInputRef} accept="image/*" className="sr-only" onChange={handleAvatarFileChange} type="file" />
+
+                  <div className="flex items-center gap-[var(--space-16)]">
+                    <button
+                      aria-label="Change avatar"
+                      className="group relative flex size-[var(--profile-avatar-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-round)] bg-[var(--avatar-overlay)] type-title text-[var(--white)] outline-none transition-[filter,transform,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-105 active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)]"
+                      onClick={() => avatarInputRef.current?.click()}
+                      type="button"
+                    >
+                      {profile.avatarDataUrl ? (
+                        <Image src={profile.avatarDataUrl} alt="" width={80} height={80} className="size-full object-cover" unoptimized />
+                      ) : (
+                        getProfileInitials(profile)
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 flex h-[var(--profile-avatar-overlay-height)] items-center justify-center gap-[var(--space-4)] bg-[var(--profile-avatar-overlay)] type-12-semibold text-[var(--white)] opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100">
+                        <Icon icon={Icons.camera} size={14} strokeWidth={2} aria-hidden="true" />
+                        Change
+                      </span>
+                    </button>
+                    <div className="flex min-w-0 flex-1 flex-col gap-[var(--space-8)]">
+                      <span className="type-16-semibold text-[var(--content-primary)]">Avatar</span>
+                      <span className="type-12 text-[var(--content-muted)]">Click the avatar to upload a new image.</span>
+                      {profile.avatarDataUrl ? (
+                        <button className="w-fit type-12-semibold text-[var(--danger-muted)] transition-colors hover:text-[var(--danger)]" onClick={() => setProfile((currentProfile) => ({ ...currentProfile, avatarDataUrl: undefined }))} type="button">
+                          Remove photo
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {avatarError ? <p className="type-12 text-[var(--danger)]">{avatarError}</p> : null}
+                  {passwordStatus?.type === "success" ? (
+                    <p aria-live="polite" className="type-12 text-[var(--success)]">{passwordStatus.message}</p>
+                  ) : null}
+
+                  <label className="flex flex-col gap-[var(--space-8)]">
+                    <span className="type-label text-[var(--content-muted)]">Name</span>
+                    <TextField
+                      className="w-full"
+                      icon={Icons.user}
+                      onChange={(event) => setProfileNameDraft(event.target.value)}
+                      placeholder="Your name"
+                      value={profileNameDraft}
+                    />
+                  </label>
+
+                  <div className="flex flex-col gap-[var(--space-8)]">
+                    <span className="type-label text-[var(--content-muted)]">Email</span>
+                    <div className="flex h-[var(--size-48)] min-w-0 items-center gap-[var(--space-8)] rounded-[var(--radius-round)] bg-[var(--control-surface)] px-[var(--space-16)] type-16 text-[var(--content-primary)]">
+                      <Icon icon={Icons.mail} size={18} strokeWidth={2} aria-hidden="true" />
+                      <span className="min-w-0 truncate">{profile.email}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-[var(--space-8)] pt-[var(--space-4)]">
+                    <Button className="h-[var(--size-48)] w-full" onClick={startPasswordChange} tone="secondary" type="button">
+                      <Icon icon={Icons.lock} size={18} strokeWidth={2} aria-hidden="true" />
+                      Change password
+                    </Button>
+                    <Button className="h-[var(--size-48)] w-full" disabled={!profileNameDraft.trim()} tone="primary" type="submit">
+                      Save
+                    </Button>
+                  </div>
+                </>
+              )}
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        
+        <div className="mt-[var(--space-24)] grid min-h-0 flex-1 w-full overflow-visible grid-cols-[var(--layout-left-width)_var(--layout-detail-width)] gap-[var(--space-24)]">
           <div className="flex h-full min-h-0 w-[var(--layout-left-width)] shrink-0 gap-[var(--space-16)]">
             <aside aria-label="Keepnoto navigation" className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col items-center justify-between">
               <nav className="flex w-[var(--layout-sidebar-width)] flex-col items-center gap-[var(--space-8)]">
@@ -1240,9 +1618,21 @@ export default function Home() {
                 ))}
               </nav>
               <div className="flex w-[var(--layout-sidebar-width)] flex-col items-center gap-[var(--space-8)]">
-                <div className="flex size-[var(--size-48)] items-center justify-center overflow-hidden rounded-[var(--radius-round)] bg-[var(--avatar-overlay)] type-16-semibold text-[var(--white)]">
-                  N
-                </div>
+                <button
+                  aria-expanded={profileDialogOpen}
+                  aria-haspopup="dialog"
+                  aria-label="Open profile settings"
+                  className="flex size-[var(--size-48)] items-center justify-center overflow-hidden rounded-[var(--radius-round)] bg-[var(--avatar-overlay)] type-16-semibold text-[var(--white)] outline-none transition-[box-shadow,filter,opacity,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-105 active:scale-[0.96] focus-visible:ring-2 focus-visible:ring-[var(--focus-ring-strong)] data-[state=open]:ring-2 data-[state=open]:ring-[var(--focus-ring-strong)]"
+                  data-state={profileDialogOpen ? "open" : undefined}
+                  onClick={() => setProfileDialogOpen(true)}
+                  type="button"
+                >
+                  {profile.avatarDataUrl ? (
+                    <Image src={profile.avatarDataUrl} alt="" width={48} height={48} className="size-full object-cover" unoptimized />
+                  ) : (
+                    getProfileInitials(profile)
+                  )}
+                </button>
               </div>
             </aside>
 
@@ -1250,7 +1640,11 @@ export default function Home() {
               <div className="flex min-h-[var(--size-32)] w-full items-center justify-between gap-[var(--space-16)]">
                 <div className="flex items-baseline gap-[var(--space-8)]">
                   <h1 className="type-title text-[var(--content-primary)]">Library</h1>
+                  {libraryStorageReady ? (
                   <span className="type-16 text-[var(--content-muted)]">{orderedLinks.length} links</span>
+                ) : (
+                  <span aria-hidden="true" className="h-[var(--space-16)] w-[var(--space-48)] animate-pulse rounded-full bg-[var(--skeleton-muted)]" />
+                )}
                 </div>
                 <Dropdown
                   align="end"
@@ -1394,8 +1788,8 @@ export default function Home() {
             </section>
           </div>
 
-          <section className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
-            <div className="flex w-full flex-col gap-[var(--space-24)]">
+          <section aria-busy={!libraryStorageReady || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
+            <div className={cn("flex w-full flex-col gap-[var(--space-24)]", (!libraryStorageReady || links.length === 0) && "invisible")}>
               <div className="flex h-[var(--size-48)] w-full items-center justify-between gap-[var(--space-24)]">
                 <h2 className="min-w-0 flex-1 truncate type-title text-[var(--content-primary)]">
                   {selectedLink.title}
@@ -1431,7 +1825,7 @@ export default function Home() {
                 externalHref={selectedLink.href}
               />
 
-              {selectedLink.savedReason ? <SavedReason reason={selectedLink.savedReason} /> : null}
+              {selectedLink.savedReason ? <SavedReason maxLength={null} reason={selectedLink.savedReason} /> : null}
 
             </div>
 

@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { CheckIcon } from "@hugeicons/core-free-icons";
 import type { IconSvgElement } from "@hugeicons/react";
 
 import {
@@ -167,7 +166,7 @@ export function SelectItem({
         {endLabel ? <span className="shrink-0 type-12 !text-[var(--content-muted)]">{endLabel}</span> : null}
         {visualState === "selected" ? (
           <span className="ml-auto flex size-[var(--size-24)] shrink-0 items-center justify-center text-[var(--accent-start)]">
-            <Icon icon={CheckIcon} size={16} strokeWidth={2} />
+            <Icon icon={Icons.check} size={16} strokeWidth={2} />
           </span>
         ) : null}
       </div>
@@ -180,7 +179,7 @@ export function SelectItem({
       <BaseSelectItemText className="min-w-0 flex-1 truncate">{children}</BaseSelectItemText>
       {endLabel ? <span className="shrink-0 type-12 !text-[var(--content-muted)]">{endLabel}</span> : null}
       <BaseSelectItemIndicator className="ml-auto flex size-[var(--size-24)] shrink-0 items-center justify-center text-[var(--accent-start)]">
-        <Icon icon={CheckIcon} size={16} strokeWidth={2} />
+        <Icon icon={Icons.check} size={16} strokeWidth={2} />
       </BaseSelectItemIndicator>
     </BaseSelectItem>
   );

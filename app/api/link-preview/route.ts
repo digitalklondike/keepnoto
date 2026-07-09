@@ -1,8 +1,11 @@
 import { type NextRequest } from "next/server";
+import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
-const FETCH_TIMEOUT_MS = 8000;
+const PAGE_FETCH_TIMEOUT_MS = 8000;
+const ASSET_FETCH_TIMEOUT_MS = 2500;
+const MANIFEST_FETCH_TIMEOUT_MS = 2500;
 const MAX_HTML_BYTES = 1_000_000;
 const MAX_MANIFEST_BYTES = 120_000;
 
@@ -26,18 +29,6 @@ type LinkPreviewResponse = {
   type?: string;
   error?: string;
 };
-
-function normalizeInputUrl(value: string) {
-  const trimmed = value.trim();
-  const candidate = /^[a-z][a-z0-9+.-]*:/i.test(trimmed) ? trimmed : `https://${trimmed}`;
-  const url = new URL(candidate);
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Only http and https URLs are supported.");
-  }
-
-  return url;
-}
 
 function decodeHtmlEntity(entity: string) {
   const namedEntities: Record<string, string> = {
@@ -275,18 +266,17 @@ function getIconArea(sizes: string) {
   return Number(match[1]) * Number(match[2]);
 }
 
-async function fetchText(url: string, maxBytes: number) {
+async function fetchText(url: string, maxBytes: number, timeoutMs = PAGE_FETCH_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       cache: "no-store",
       headers: {
         accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "user-agent": "Keepnoto-LinkPreview/0.1",
       },
-      redirect: "follow",
       signal: controller.signal,
     });
 
@@ -343,7 +333,7 @@ async function findManifestIconCandidates(manifestHref: string | undefined, page
   }
 
   try {
-    const manifestText = await fetchText(manifestHref, MAX_MANIFEST_BYTES);
+    const manifestText = await fetchText(manifestHref, MAX_MANIFEST_BYTES, MANIFEST_FETCH_TIMEOUT_MS);
     const manifest = JSON.parse(manifestText) as { icons?: Array<{ src?: string; sizes?: string; purpose?: string }> };
     const manifestUrl = new URL(manifestHref, pageUrl);
 
@@ -371,16 +361,15 @@ function isLikelyImagePath(value: string) {
 
 async function isUsableImage(url: string) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), ASSET_FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(url, {
+    const response = await safeFetch(url, {
       cache: "no-store",
       headers: {
         accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
         "user-agent": "Keepnoto-LinkPreview/0.1",
       },
-      redirect: "follow",
       signal: controller.signal,
     });
 
@@ -401,13 +390,10 @@ async function isUsableImage(url: string) {
 }
 
 async function findFirstUsableImage(candidates: string[]) {
-  for (const candidate of uniqueUrls(candidates)) {
-    if (await isUsableImage(candidate)) {
-      return candidate;
-    }
-  }
+  const uniqueCandidates = uniqueUrls(candidates);
+  const checks = await Promise.all(uniqueCandidates.map(async (candidate) => isUsableImage(candidate)));
 
-  return undefined;
+  return uniqueCandidates.find((_, index) => checks[index]);
 }
 
 async function findBestDeclaredImage(candidates: string[]) {
@@ -422,7 +408,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const pageUrl = normalizeInputUrl(rawUrl);
+    const pageUrl = normalizePublicHttpUrl(rawUrl);
     const html = await fetchText(pageUrl.href, MAX_HTML_BYTES);
     const manifestIcons = await findManifestIconCandidates(findManifestHref(html, pageUrl), pageUrl);
     const previewImageCandidates = getPreviewImageCandidates(html, pageUrl);
