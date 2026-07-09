@@ -1,18 +1,47 @@
-﻿import { type NextRequest } from "next/server";
+import { type NextRequest } from "next/server";
+import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
 
 const FETCH_TIMEOUT_MS = 8000;
 const MAX_MEDIA_BYTES = 4_000_000;
 
-function normalizeMediaUrl(value: string) {
-  const url = new URL(value);
+function getImageContentTypeFromPath(value: string) {
+  try {
+    const pathname = new URL(value).pathname.toLowerCase();
 
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Only http and https media URLs are supported.");
+    if (pathname.endsWith(".svg")) {
+      return "image/svg+xml";
+    }
+
+    if (pathname.endsWith(".png")) {
+      return "image/png";
+    }
+
+    if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) {
+      return "image/jpeg";
+    }
+
+    if (pathname.endsWith(".webp")) {
+      return "image/webp";
+    }
+
+    if (pathname.endsWith(".avif")) {
+      return "image/avif";
+    }
+
+    if (pathname.endsWith(".gif")) {
+      return "image/gif";
+    }
+
+    if (pathname.endsWith(".ico")) {
+      return "image/x-icon";
+    }
+  } catch {
+    return undefined;
   }
 
-  return url;
+  return undefined;
 }
 
 export async function GET(request: NextRequest) {
@@ -23,18 +52,17 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const mediaUrl = normalizeMediaUrl(rawUrl);
+    const mediaUrl = normalizePublicHttpUrl(rawUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     try {
-      const response = await fetch(mediaUrl.href, {
+      const response = await safeFetch(mediaUrl, {
         cache: "force-cache",
         headers: {
           accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
           "user-agent": "Keepnoto-MediaProxy/0.1",
         },
-        redirect: "follow",
         signal: controller.signal,
       });
 
@@ -43,8 +71,10 @@ export async function GET(request: NextRequest) {
       }
 
       const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      const fallbackContentType = getImageContentTypeFromPath(response.url);
+      const responseLooksLikeImage = contentType.startsWith("image/") || (Boolean(fallbackContentType) && !contentType.includes("text/html"));
 
-      if (!contentType.startsWith("image/")) {
+      if (!responseLooksLikeImage) {
         return new Response("Unsupported media type.", { status: 415 });
       }
 
@@ -64,7 +94,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "access-control-allow-origin": "*",
           "cache-control": "public, max-age=86400, s-maxage=604800",
-          "content-type": contentType,
+          "content-type": contentType.startsWith("image/") ? contentType : fallbackContentType ?? "application/octet-stream",
           "x-content-type-options": "nosniff",
         },
       });

@@ -274,7 +274,6 @@
   --multi-select-input-min-width-compact: 48px;
   --large-text-field-min-height: 128px;
   --large-text-field-textarea-min-height: 88px;
-  --large-text-field-counter-space: 40px;
   --layout-detail-min-width: 560px;
   --layout-detail-max-width: 720px;
   --layout-left-width: calc(var(--layout-sidebar-width) + var(--space-16) + var(--search-width));
@@ -294,6 +293,10 @@
   --save-button-width: 160px;
   --save-link-dialog-width: 640px;
   --confirm-dialog-width: 480px;
+  --profile-dialog-width: 520px;
+  --profile-avatar-size: 80px;
+  --profile-avatar-overlay-height: 28px;
+  --profile-avatar-overlay: rgb(29 29 29 / 58%);
   --scrollbar-lane: 16px;
   --scrollbar-thumb-size: 4px;
   --scrollbar-thumb: color-mix(in srgb, var(--accent-start) 18%, transparent);
