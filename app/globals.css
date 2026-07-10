@@ -254,6 +254,7 @@
   --state-danger-pressed: color-mix(in srgb, var(--danger) 10%, transparent);
   --icon-muted: color-mix(in srgb, var(--content-primary) 66%, transparent);
   --danger-muted: color-mix(in srgb, var(--danger) 76%, transparent);
+  --success-muted: color-mix(in srgb, var(--success) 76%, transparent);
   --danger-dropdown: color-mix(in srgb, var(--danger) 78%, transparent);
   --add-tag-border: color-mix(in srgb, var(--neutral-600) 28%, transparent);
   --add-tag-border-hover: color-mix(in srgb, var(--neutral-600) 38%, transparent);

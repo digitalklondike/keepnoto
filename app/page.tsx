@@ -17,8 +17,10 @@ import {
 } from "@/components/keepnoto/design-constants";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LinkCard } from "@/components/keepnoto/link-card";
+import { ArchiveDetailPanel, ArchivePanel } from "@/components/keepnoto/archive-manager";
+import { TagDetailPanel, TagManagerPanel, type TagSummary } from "@/components/keepnoto/tag-manager";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
-import { deleteLibraryLink, loadLibrary, saveLibraryLink, saveProfileName, setLibraryLinkFavorite } from "@/lib/supabase/library";
+import { archiveLibraryLink, deleteLibraryLinkPermanently, deleteLibraryTag, loadLibrary, renameLibraryTag, restoreLibraryLink, saveLibraryLink, saveProfileName, setLibraryLinkFavorite } from "@/lib/supabase/library";
 import { cn } from "@/lib/utils";
 import {
   BrandLogo,
@@ -55,6 +57,7 @@ const sortOptions = [
 ] as const;
 
 type SortOptionId = (typeof sortOptions)[number]["id"];
+type WorkspaceView = "library" | "tags" | "archive";
 
 type SavedLink = {
   id: string;
@@ -75,6 +78,7 @@ type SavedLink = {
   addedDate: string;
   logoColor: string;
   favorite?: boolean;
+  archivedAt?: string;
 };
 
 type LinkPreviewMetadata = {
@@ -241,10 +245,10 @@ async function fetchLinkPreviewMetadata(url: string) {
 }
 
 const navItems = [
-  { label: "Links", icon: Icons.link, active: true },
-  { label: "Tags", icon: Icons.tag },
-  { label: "Collections", icon: Icons.folder },
-  { label: "Reading", icon: Icons.book },
+  { label: "Links", icon: Icons.link, view: "library" as const },
+  { label: "Tags", icon: Icons.tag, view: "tags" as const },
+  { label: "Collections", icon: Icons.folder, disabled: true },
+  { label: "Archive", icon: Icons.archive, view: "archive" as const },
 ];
 
 function orderLinksByFavorite(links: SavedLink[], favoriteLinkIds: Set<string>) {
@@ -350,7 +354,21 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
   const initialProfile = createUserProfile(session.email);
   const [libraryBoundary, setLibraryBoundary] = React.useState<HTMLElement | null>(null);
   const [links, setLinks] = React.useState<SavedLink[]>(initialLinks);
+  const [archivedLinks, setArchivedLinks] = React.useState<SavedLink[]>([]);
+  const [archiveSearchQuery, setArchiveSearchQuery] = React.useState("");
+  const [selectedArchivedLinkId, setSelectedArchivedLinkId] = React.useState("");
+  const [archiveMutationPending, setArchiveMutationPending] = React.useState(false);
+  const [permanentDeleteTargetId, setPermanentDeleteTargetId] = React.useState<string | null>(null);
   const [availableTagValues, setAvailableTagValues] = React.useState<string[]>([]);
+  const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("library");
+  const [tagSearchQuery, setTagSearchQuery] = React.useState("");
+  const [selectedTagName, setSelectedTagName] = React.useState("");
+  const [tagRenameTarget, setTagRenameTarget] = React.useState<string | null>(null);
+  const [tagNameDraft, setTagNameDraft] = React.useState("");
+  const [tagRenameError, setTagRenameError] = React.useState<string | null>(null);
+  const [tagDeleteTarget, setTagDeleteTarget] = React.useState<string | null>(null);
+  const [tagActionError, setTagActionError] = React.useState<string | null>(null);
+  const [tagMutationPending, setTagMutationPending] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState(filterTabs[0].label);
   const [searchQuery, setSearchQuery] = React.useState("");
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -404,7 +422,10 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
           : createUserProfile(session.email);
 
         setLinks(snapshot.links);
+        setArchivedLinks(snapshot.archivedLinks);
+        setSelectedArchivedLinkId(snapshot.archivedLinks[0]?.id ?? "");
         setAvailableTagValues(snapshot.tags);
+        setSelectedTagName(snapshot.tags[0] ?? "");
         setFavoriteLinkIds(new Set(snapshot.links.filter((link) => link.favorite).map((link) => link.id)));
         setSelectedLinkId(snapshot.links[0]?.id ?? "");
         setProfile(nextProfile);
@@ -441,6 +462,29 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
 
     return counts;
   }, [links]);
+  const tagSummaries = React.useMemo<TagSummary[]>(
+    () =>
+      tagOptions
+        .map((option) => ({ name: option.value, linkCount: tagLinkCounts.get(option.value) ?? 0 }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [tagLinkCounts, tagOptions]
+  );
+  const normalizedTagSearchQuery = tagSearchQuery.trim().toLowerCase();
+  const filteredTagSummaries = React.useMemo(
+    () =>
+      normalizedTagSearchQuery
+        ? tagSummaries.filter((tag) => tag.name.toLowerCase().includes(normalizedTagSearchQuery))
+        : tagSummaries,
+    [normalizedTagSearchQuery, tagSummaries]
+  );
+  const selectedTagSummary = React.useMemo(
+    () => tagSummaries.find((tag) => tag.name === selectedTagName) ?? tagSummaries[0],
+    [selectedTagName, tagSummaries]
+  );
+  const selectedTagLinks = React.useMemo(
+    () => selectedTagSummary ? links.filter((link) => link.tags.includes(selectedTagSummary.name)) : [],
+    [links, selectedTagSummary]
+  );
   const filterTabItems = React.useMemo(
     () => [
       { label: "All links", count: undefined },
@@ -531,6 +575,23 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
   const selectedLink = React.useMemo(
     () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? links[0] ?? fallbackLink,
     [links, orderedLinks, selectedLinkId]
+  );
+  const normalizedArchiveSearchQuery = archiveSearchQuery.trim().toLowerCase();
+  const filteredArchivedLinks = React.useMemo(() => {
+    if (!normalizedArchiveSearchQuery) {
+      return archivedLinks;
+    }
+
+    return archivedLinks.filter((link) =>
+      [link.title, link.domain, link.source, link.description, link.savedReason ?? "", ...link.tags]
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedArchiveSearchQuery)
+    );
+  }, [archivedLinks, normalizedArchiveSearchQuery]);
+  const selectedArchivedLink = React.useMemo(
+    () => filteredArchivedLinks.find((link) => link.id === selectedArchivedLinkId) ?? filteredArchivedLinks[0],
+    [filteredArchivedLinks, selectedArchivedLinkId]
   );
   const emptyLibraryTitle = normalizedSearchQuery
     ? "No saved links match this"
@@ -950,6 +1011,139 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
       setIsSavingLink(false);
     }
   };
+  const openWorkspaceView = (view: WorkspaceView) => {
+    setWorkspaceView(view);
+
+    if (view === "tags" && !selectedTagSummary && tagSummaries[0]) {
+      setSelectedTagName(tagSummaries[0].name);
+    }
+
+    if (view === "archive" && !selectedArchivedLinkId && archivedLinks[0]) {
+      setSelectedArchivedLinkId(archivedLinks[0].id);
+    }
+  };
+
+  const startTagRename = (tag: string) => {
+    if (tagMutationPending) {
+      return;
+    }
+
+    setSelectedTagName(tag);
+    setTagRenameTarget(tag);
+    setTagNameDraft(tag);
+    setTagRenameError(null);
+  };
+
+  const cancelTagRename = () => {
+    if (tagMutationPending) {
+      return;
+    }
+
+    setTagRenameTarget(null);
+    setTagNameDraft("");
+    setTagRenameError(null);
+  };
+
+  const submitTagRename = async () => {
+    if (!tagRenameTarget || tagMutationPending) {
+      return;
+    }
+
+    const currentTag = tagRenameTarget;
+    const nextName = normalizeTagValue(tagNameDraft);
+
+    if (!nextName) {
+      setTagRenameError("Enter a tag name.");
+      return;
+    }
+
+    if (nextName === currentTag) {
+      cancelTagRename();
+      return;
+    }
+
+    if (tagSummaries.some((tag) => tag.name === nextName)) {
+      setTagRenameError("A tag named " + nextName + " already exists.");
+      return;
+    }
+
+    setTagMutationPending(true);
+    setTagRenameError(null);
+
+    try {
+      await renameLibraryTag(session.id, currentTag, nextName);
+      setAvailableTagValues((current) =>
+        Array.from(new Set(current.map((tag) => tag === currentTag ? nextName : tag))).sort((a, b) => a.localeCompare(b))
+      );
+      setLinks((current) =>
+        current.map((link) => ({
+          ...link,
+          tags: link.tags.map((tag) => tag === currentTag ? nextName : tag),
+        }))
+      );
+      setDraftTags((current) => current.map((tag) => tag === currentTag ? nextName : tag));
+      setActiveTab((current) => current === currentTag ? nextName : current);
+      setSelectedTagName((current) => current === currentTag ? nextName : current);
+      setTagRenameTarget(null);
+      setTagNameDraft("");
+    } catch {
+      setTagRenameError("Could not rename this tag. Please try again.");
+    } finally {
+      setTagMutationPending(false);
+    }
+  };
+
+  const openTagDeleteDialog = (tag: string) => {
+    setTagRenameTarget(null);
+    setTagNameDraft("");
+    setTagRenameError(null);
+    setTagDeleteTarget(tag);
+    setTagActionError(null);
+  };
+
+  const handleTagDeleteDialogOpenChange = (open: boolean) => {
+    if (!open && !tagMutationPending) {
+      setTagDeleteTarget(null);
+      setTagActionError(null);
+    }
+  };
+  const handleDeleteTag = async () => {
+    if (!tagDeleteTarget || tagMutationPending) {
+      return;
+    }
+
+    setTagMutationPending(true);
+    setTagActionError(null);
+
+    try {
+      await deleteLibraryTag(session.id, tagDeleteTarget);
+      const nextSelectedTag = tagSummaries.find((tag) => tag.name !== tagDeleteTarget)?.name ?? "";
+
+      setAvailableTagValues((current) => current.filter((tag) => tag !== tagDeleteTarget));
+      setLinks((current) =>
+        current.map((link) => ({ ...link, tags: link.tags.filter((tag) => tag !== tagDeleteTarget) }))
+      );
+      setDraftTags((current) => current.filter((tag) => tag !== tagDeleteTarget));
+      setActiveTab((current) => current === tagDeleteTarget ? "All links" : current);
+      setSelectedTagName((current) => current === tagDeleteTarget ? nextSelectedTag : current);
+      setTagDeleteTarget(null);
+    } catch {
+      setTagActionError("Could not delete this tag. Please try again.");
+    } finally {
+      setTagMutationPending(false);
+    }
+  };
+
+  const openManagedTagLink = (linkId: string) => {
+    if (!selectedTagSummary) {
+      return;
+    }
+
+    setActiveTab(selectedTagSummary.name);
+    setSelectedLinkId(linkId);
+    setWorkspaceView("library");
+  };
+
   const selectTab = (tab: string) => {
     const nextLinks = orderLinksByFavorite(
       sortLinks(tab === "All links" ? links : links.filter((link) => link.tags.includes(tab)), sortOptionId),
@@ -958,6 +1152,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
 
     setActiveTab(tab);
     setSelectedLinkId(nextLinks[0]?.id ?? links[0]?.id ?? fallbackLink.id);
+    setWorkspaceView("library");
   };
   const openSelectedLink = () => {
     window.open(selectedLink.href, "_blank", "noopener,noreferrer");
@@ -978,33 +1173,71 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
   };
 
   const handleDeleteSelectedLink = async () => {
-    const deletedLinkId = selectedLink.id;
+    const archivedLink = selectedLink;
 
     try {
-      await deleteLibraryLink(deletedLinkId);
+      const archivedAt = await archiveLibraryLink(archivedLink.id);
+      const nextArchivedLink = { ...archivedLink, archivedAt, favorite: false };
+      const remainingLinks = links.filter((link) => link.id !== archivedLink.id);
+      const nextFavoriteLinkIds = new Set(favoriteLinkIds);
+
+      nextFavoriteLinkIds.delete(archivedLink.id);
+      setFavoriteLinkIds(nextFavoriteLinkIds);
+      setLinks(remainingLinks);
+      setArchivedLinks((current) => [nextArchivedLink, ...current]);
+      setSelectedArchivedLinkId(nextArchivedLink.id);
+      setSelectedLinkId(remainingLinks[0]?.id ?? fallbackLink.id);
+      setActiveTab("All links");
+      setDeleteDialogOpen(false);
     } catch {
-      setLibraryError("Could not remove this link. Please try again.");
+      setLibraryError("Could not move this link to the archive. Please try again.");
+    }
+  };
+
+  const handleRestoreArchivedLink = async (linkId: string) => {
+    const archivedLink = archivedLinks.find((link) => link.id === linkId);
+
+    if (!archivedLink || archiveMutationPending) {
       return;
     }
 
-    const nextFavoriteLinkIds = new Set(favoriteLinkIds);
-    const remainingLinks = links.filter((link) => link.id !== deletedLinkId);
+    setArchiveMutationPending(true);
 
-    nextFavoriteLinkIds.delete(deletedLinkId);
+    try {
+      await restoreLibraryLink(linkId);
+      const nextArchivedLinks = archivedLinks.filter((link) => link.id !== linkId);
+      const restoredLink = { ...archivedLink, archivedAt: undefined, favorite: false };
 
-    const linksForCurrentTab = activeTab === "All links" ? remainingLinks : remainingLinks.filter((link) => link.tags.includes(activeTab));
-    const shouldResetTab = activeTab !== "All links" && linksForCurrentTab.length === 0;
-    const nextActiveTab = shouldResetTab ? "All links" : activeTab;
-    const nextVisibleLinks = shouldResetTab ? remainingLinks : linksForCurrentTab;
-    const nextSelectedLink = orderLinksByFavorite(sortLinks(nextVisibleLinks, sortOptionId), nextFavoriteLinkIds)[0] ?? remainingLinks[0];
-
-    setFavoriteLinkIds(nextFavoriteLinkIds);
-    setLinks(remainingLinks);
-    setActiveTab(nextActiveTab);
-    setSelectedLinkId(nextSelectedLink?.id ?? fallbackLink.id);
-    setDeleteDialogOpen(false);
+      setArchivedLinks(nextArchivedLinks);
+      setLinks((current) => [restoredLink, ...current]);
+      setSelectedArchivedLinkId(nextArchivedLinks[0]?.id ?? "");
+      setSelectedLinkId(restoredLink.id);
+      setActiveTab("All links");
+    } finally {
+      setArchiveMutationPending(false);
+    }
   };
 
+  const handleDeleteArchivedLinkPermanently = async () => {
+    const linkId = permanentDeleteTargetId;
+
+    if (!linkId || archiveMutationPending) {
+      return;
+    }
+
+    setArchiveMutationPending(true);
+
+    try {
+      await deleteLibraryLinkPermanently(linkId);
+      const nextArchivedLinks = archivedLinks.filter((link) => link.id !== linkId);
+
+      setArchivedLinks(nextArchivedLinks);
+      setSelectedArchivedLinkId(nextArchivedLinks[0]?.id ?? "");
+      setPermanentDeleteTargetId(null);
+    } finally {
+      setArchiveMutationPending(false);
+    }
+  };
   const toggleFavorite = (linkId: string) => {
     const nextFavorite = !favoriteLinkIds.has(linkId);
     const updateFavorite = () => {
@@ -1057,6 +1290,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
 
     void setLibraryLinkFavorite(linkId, nextFavorite).catch(revertFavorite);
   };
+  const topSearchQuery = workspaceView === "tags" ? tagSearchQuery : workspaceView === "archive" ? archiveSearchQuery : searchQuery;
+
   return (
     <main className="relative h-dvh w-dvw overflow-hidden p-[var(--space-24)] text-[var(--content-primary)]">
       <svg
@@ -1109,7 +1344,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
             <TextField
               ref={searchInputRef}
               endAdornment={
-                searchQuery ? (
+                topSearchQuery ? (
                   <IconButton
                     aria-label="Clear search"
                     className="text-[var(--icon-muted)] hover:text-[var(--content-primary)]"
@@ -1118,7 +1353,14 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                     label="Clear search"
                     mode="plain"
                     onClick={() => {
-                      setSearchQuery("");
+                      if (workspaceView === "tags") {
+                        setTagSearchQuery("");
+                      } else if (workspaceView === "archive") {
+                        setArchiveSearchQuery("");
+                      } else {
+                        setSearchQuery("");
+                      }
+
                       searchInputRef.current?.focus();
                     }}
                     onMouseDown={(event) => event.preventDefault()}
@@ -1127,10 +1369,10 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                   />
                 ) : null
               }
-              onChange={(event) => setSearchQuery(event.target.value)}
-              onKeyDown={handleTopSearchKeyDown}
-              placeholder="Search your library or paste a link to save..."
-              value={searchQuery}
+              onChange={(event) => workspaceView === "tags" ? setTagSearchQuery(event.target.value) : workspaceView === "archive" ? setArchiveSearchQuery(event.target.value) : setSearchQuery(event.target.value)}
+              onKeyDown={workspaceView === "library" ? handleTopSearchKeyDown : undefined}
+              placeholder={workspaceView === "tags" ? "Search tags..." : workspaceView === "archive" ? "Search archive..." : "Search your library or paste a link to save..."}
+              value={topSearchQuery}
             />
           </div>
           <div className="flex h-[var(--size-48)] w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] items-center justify-end">
@@ -1234,9 +1476,9 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
             className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]"
           >
             <div className="flex flex-col gap-[var(--space-8)]">
-              <DialogTitle className="type-title text-[var(--content-primary)]">Remove this link?</DialogTitle>
+              <DialogTitle className="type-title text-[var(--content-primary)]">Move this link to archive?</DialogTitle>
               <DialogDescription className="type-16 text-[var(--content-muted)]">
-                This removes the link and saved note from your library. You can save it again, but this copy will be gone.
+                The link will leave your library and stay in Archive for 7 days before it is permanently deleted.
               </DialogDescription>
             </div>
 
@@ -1245,12 +1487,48 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                 Keep link
               </Button>
               <Button className="h-[var(--size-48)] flex-1" onClick={handleDeleteSelectedLink} tone="secondaryDanger" type="button">
-                Remove link
+                Move to archive
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
+        <Dialog open={Boolean(permanentDeleteTargetId)} onOpenChange={(open) => !open && setPermanentDeleteTargetId(null)}>
+          <DialogContent className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]">
+            <div className="flex flex-col gap-[var(--space-8)]">
+              <DialogTitle className="type-title text-[var(--content-primary)]">Delete this link permanently?</DialogTitle>
+              <DialogDescription className="type-16 text-[var(--content-muted)]">
+                This cannot be undone. The saved link, its note, and its tag connections will be removed now.
+              </DialogDescription>
+            </div>
+            <div className="flex h-[var(--size-48)] items-center gap-[var(--space-8)]">
+              <Button className="h-[var(--size-48)] flex-1" disabled={archiveMutationPending} onClick={() => setPermanentDeleteTargetId(null)} tone="secondary" type="button">
+                Keep in archive
+              </Button>
+              <Button className="h-[var(--size-48)] flex-1" disabled={archiveMutationPending} onClick={() => void handleDeleteArchivedLinkPermanently()} tone="secondaryDanger" type="button">
+                Delete now
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={Boolean(tagDeleteTarget)} onOpenChange={handleTagDeleteDialogOpenChange}>
+          <DialogContent className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]">
+            <div className="flex flex-col gap-[var(--space-8)] pr-[var(--space-32)]">
+              <DialogTitle className="type-title text-[var(--content-primary)]">Delete #{tagDeleteTarget}?</DialogTitle>
+              <DialogDescription className="type-16 text-[var(--content-muted)]">
+                This removes the tag from {tagLinkCounts.get(tagDeleteTarget ?? "") ?? 0} saved {(tagLinkCounts.get(tagDeleteTarget ?? "") ?? 0) === 1 ? "link" : "links"}. The links themselves will stay in your library.
+              </DialogDescription>
+            </div>
+            {tagActionError ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{tagActionError}</p> : null}
+            <div className="flex h-[var(--size-48)] items-center gap-[var(--space-8)]">
+              <Button className="h-[var(--size-48)] flex-1" disabled={tagMutationPending} onClick={() => handleTagDeleteDialogOpenChange(false)} tone="secondary" type="button">Keep tag</Button>
+              <Button className="h-[var(--size-48)] flex-1" disabled={tagMutationPending} onClick={() => void handleDeleteTag()} tone="secondaryDanger" type="button">
+                <Icon icon={Icons.delete} size={20} strokeWidth={1.8} aria-hidden="true" />
+                {tagMutationPending ? "Deleting..." : "Delete tag"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
           <DialogContent
             initialFocus={false}
@@ -1381,7 +1659,16 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
             <aside aria-label="Keepnoto navigation" className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col items-center justify-between">
               <nav className="flex w-[var(--layout-sidebar-width)] flex-col items-center gap-[var(--space-8)]">
                 {navItems.map((item) => (
-                  <IconButton key={item.label} icon={item.icon} label={item.label} active={item.active} iconSize={24} tooltipSide="auto" />
+                  <IconButton
+                    key={item.label}
+                    icon={item.icon}
+                    label={item.label}
+                    active={item.view === workspaceView}
+                    disabled={item.disabled}
+                    iconSize={24}
+                    onClick={item.view ? () => openWorkspaceView(item.view) : undefined}
+                    tooltipSide="auto"
+                  />
                 ))}
               </nav>
               <div className="flex w-[var(--layout-sidebar-width)] flex-col items-center gap-[var(--space-8)]">
@@ -1403,7 +1690,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
               </div>
             </aside>
 
-            <section ref={setLibraryBoundary} className="flex h-full min-h-0 w-[var(--search-width)] shrink-0 flex-col rounded-[var(--radius-32)] bg-[var(--panel-surface)] px-[var(--space-24)] pb-[var(--space-12)] pt-[var(--space-32)] backdrop-blur-[var(--blur-soft)]">
+            {workspaceView === "library" ? (
+              <section aria-busy={!libraryReady || undefined} ref={setLibraryBoundary} className="flex h-full min-h-0 w-[var(--search-width)] shrink-0 flex-col rounded-[var(--radius-32)] bg-[var(--panel-surface)] px-[var(--space-24)] pb-[var(--space-12)] pt-[var(--space-32)] backdrop-blur-[var(--blur-soft)]">
               <div className="flex min-h-[var(--size-32)] w-full items-center justify-between gap-[var(--space-16)]">
                 <div className="flex items-baseline gap-[var(--space-8)]">
                   <h1 className="type-title text-[var(--content-primary)]">Library</h1>
@@ -1492,6 +1780,12 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                     <div className="flex h-full min-h-[calc(var(--size-48)*6)] flex-col items-center justify-center px-[var(--space-24)] text-center">
                       <p className="type-16 text-[var(--danger)]">{libraryError}</p>
                     </div>
+                  ) : !libraryReady ? (
+                    <div aria-label="Loading saved links" className="library-card-stack">
+                      {[0, 1, 2, 3].map((item) => (
+                        <LinkCard key={item} title="" source="" visualState="loading" />
+                      ))}
+                    </div>
                   ) : hasLibraryCards ? (
                     <div ref={libraryCardStackRef} className="library-card-stack">
                       {orderedLinks.map((link) => (
@@ -1564,10 +1858,71 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                   </div>
                 ) : null}
               </div>
-            </section>
+              </section>
+            ) : workspaceView === "tags" ? (
+              <TagManagerPanel
+                loading={!libraryReady}
+                tags={filteredTagSummaries}
+                totalCount={tagSummaries.length}
+                selectedTag={selectedTagSummary?.name}
+                searchQuery={tagSearchQuery}
+                onSelectTag={setSelectedTagName}
+                onRenameTag={startTagRename}
+                onDeleteTag={openTagDeleteDialog}
+              />
+            ) : (
+              <ArchivePanel
+                links={filteredArchivedLinks.map((link) => ({ ...link, archivedAt: link.archivedAt ?? new Date().toISOString() }))}
+                loading={!libraryReady}
+                onSelectLink={setSelectedArchivedLinkId}
+                selectedLinkId={selectedArchivedLink?.id}
+                totalCount={archivedLinks.length}
+              />
+            )}
           </div>
 
-          <section aria-busy={!libraryReady || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
+          {workspaceView === "library" ? (
+            <section aria-busy={!libraryReady || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
+            {!libraryReady ? (
+              <div aria-label="Loading selected link" className="flex w-full flex-col gap-[var(--space-24)]">
+                <div className="flex h-[var(--size-48)] items-center justify-between gap-[var(--space-24)]">
+                  <span className="h-[var(--skeleton-line-height)] w-3/5 animate-pulse rounded-full bg-[var(--skeleton-muted)]" />
+                  <div className="flex items-center gap-[var(--space-8)]">
+                    <span className="size-[var(--size-48)] animate-pulse rounded-[var(--radius-round)] bg-[var(--skeleton-muted-soft)]" />
+                    <span className="size-[var(--size-48)] animate-pulse rounded-[var(--radius-round)] bg-[var(--skeleton-muted-soft)]" />
+                  </div>
+                </div>
+                <div className="flex h-[var(--preview-card-height)] w-full gap-[var(--space-16)] rounded-[var(--radius-24)] bg-[var(--card-active-surface)] p-[var(--space-8)] pr-[var(--space-16)]">
+                  <span className="size-[var(--preview-media-size)] shrink-0 animate-pulse rounded-[var(--radius-16)] bg-[var(--skeleton-muted)]" />
+                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-[var(--space-8)]">
+                    <span className="h-[var(--skeleton-line-height)] w-2/5 animate-pulse rounded-full bg-[var(--skeleton-muted)]" />
+                    <span className="h-[var(--skeleton-line-height)] w-full animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                    <span className="h-[var(--skeleton-line-height)] w-4/5 animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                    <span className="mt-[var(--space-8)] h-[var(--skeleton-line-height-sm)] w-1/2 animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-[var(--space-8)]">
+                  <span className="h-[var(--skeleton-line-height-sm)] w-[var(--skeleton-chip-width-md)] animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                  <span className="h-[var(--skeleton-line-height)] w-full animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                  <span className="h-[var(--skeleton-line-height)] w-3/4 animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />
+                </div>
+                <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] gap-[var(--space-32)]">
+                  <div className="flex flex-col gap-[var(--space-24)]">
+                    {[0, 1].map((item) => <span key={item} className="h-[var(--size-24)] w-3/4 animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />)}
+                  </div>
+                  <span className="w-px bg-[var(--divider-subtle)]" />
+                  <div className="flex flex-col gap-[var(--space-24)]">
+                    {[0, 1].map((item) => <span key={item} className="h-[var(--size-24)] w-3/4 animate-pulse rounded-full bg-[var(--skeleton-muted-soft)]" />)}
+                  </div>
+                </div>
+                <span className="h-px w-full bg-[var(--divider-subtle)]" />
+                <div className="flex h-[var(--size-48)] gap-[var(--space-8)]">
+                  <span className="flex-1 animate-pulse rounded-[var(--radius-round)] bg-[var(--skeleton-muted-soft)]" />
+                  <span className="flex-1 animate-pulse rounded-[var(--radius-round)] bg-[var(--skeleton-muted-soft)]" />
+                  <span className="flex-[var(--primary-action-flex)] animate-pulse rounded-[var(--radius-round)] bg-[var(--skeleton-muted)]" />
+                </div>
+              </div>
+            ) : null}
             {libraryReady && links.length === 0 ? (
               <div className="flex min-h-[calc(var(--size-48)*5)] w-full flex-col items-center justify-center gap-[var(--space-16)] px-[var(--space-32)] text-center">
                 <span className="flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--icon-muted)]">
@@ -1706,7 +2061,33 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                 </Button>
               </div>
             </div>
-          </section>
+            </section>
+          ) : workspaceView === "tags" ? (
+            <TagDetailPanel
+              key={selectedTagSummary?.name ?? "empty-tag"}
+              tag={selectedTagSummary}
+              links={selectedTagLinks}
+              renaming={Boolean(selectedTagSummary && tagRenameTarget === selectedTagSummary.name)}
+              renameDraft={tagNameDraft}
+              renameError={tagRenameError}
+              renamePending={tagMutationPending}
+              onOpenLink={openManagedTagLink}
+              onViewLinks={selectTab}
+              onRenameDraftChange={setTagNameDraft}
+              onStartRename={startTagRename}
+              onCancelRename={cancelTagRename}
+              onSubmitRename={submitTagRename}
+              onDeleteTag={openTagDeleteDialog}
+            />
+          ) : (
+            <ArchiveDetailPanel
+              actionPending={archiveMutationPending}
+              link={selectedArchivedLink?.archivedAt ? { ...selectedArchivedLink, archivedAt: selectedArchivedLink.archivedAt } : undefined}
+              loading={!libraryReady}
+              onDeletePermanently={setPermanentDeleteTargetId}
+              onRestore={(linkId) => void handleRestoreArchivedLink(linkId)}
+            />
+          )}
         </div>
       </div>
     </main>

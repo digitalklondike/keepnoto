@@ -25,6 +25,7 @@ type LinkRow = {
   collection_name: string | null;
   is_favorite: boolean;
   created_at: string;
+  archived_at: string | null;
   link_tags: Array<{ tags: { name: string } | null }> | null;
 };
 
@@ -47,6 +48,7 @@ export type LibraryLink = {
   addedDate: string;
   logoColor: string;
   favorite: boolean;
+  archivedAt?: string;
 };
 
 export type LibraryProfile = {
@@ -56,11 +58,12 @@ export type LibraryProfile = {
 
 export type LibrarySnapshot = {
   links: LibraryLink[];
+  archivedLinks: LibraryLink[];
   profile: LibraryProfile | null;
   tags: string[];
 };
 
-export type LibraryLinkInput = Omit<LibraryLink, "addedDate" | "favorite" | "id" | "logoColor"> & {
+export type LibraryLinkInput = Omit<LibraryLink, "addedDate" | "archivedAt" | "favorite" | "id" | "logoColor"> & {
   id?: string;
   favorite?: boolean;
 };
@@ -108,6 +111,7 @@ function mapLink(row: LinkRow, index: number): LibraryLink {
     addedDate: relativeDate(row.created_at),
     logoColor: linkLogoColors[index % linkLogoColors.length],
     favorite: row.is_favorite,
+    archivedAt: row.archived_at ?? undefined,
   };
 }
 
@@ -121,7 +125,7 @@ async function getLink(linkId: string): Promise<LibraryLink> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("links")
-    .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, link_tags(tags(name))")
+    .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, archived_at, link_tags(tags(name))")
     .eq("id", linkId)
     .single();
 
@@ -159,7 +163,7 @@ export async function loadLibrary(userId: string): Promise<LibrarySnapshot> {
   const [linksResult, tagsResult, profileResult] = await Promise.all([
     supabase
       .from("links")
-      .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, link_tags(tags(name))")
+      .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, archived_at, link_tags(tags(name))")
       .order("is_favorite", { ascending: false })
       .order("created_at", { ascending: false }),
     supabase.from("tags").select("name").order("name"),
@@ -170,8 +174,15 @@ export async function loadLibrary(userId: string): Promise<LibrarySnapshot> {
   ensureSuccess(tagsResult.error);
   ensureSuccess(profileResult.error);
 
+  const linkRows = (linksResult.data ?? []) as unknown as LinkRow[];
+  const activeRows = linkRows.filter((row) => !row.archived_at);
+  const archivedRows = linkRows
+    .filter((row) => Boolean(row.archived_at))
+    .sort((a, b) => new Date(b.archived_at ?? 0).getTime() - new Date(a.archived_at ?? 0).getTime());
+
   return {
-    links: ((linksResult.data ?? []) as unknown as LinkRow[]).map(mapLink),
+    links: activeRows.map(mapLink),
+    archivedLinks: archivedRows.map(mapLink),
     tags: (tagsResult.data ?? []).map(({ name }) => name),
     profile: profileResult.data
       ? {
@@ -217,7 +228,22 @@ export async function saveLibraryLink(userId: string, link: LibraryLinkInput): P
   return getLink(result.data.id);
 }
 
-export async function deleteLibraryLink(linkId: string) {
+export async function archiveLibraryLink(linkId: string) {
+  const archivedAt = new Date().toISOString();
+  const { error } = await createClient()
+    .from("links")
+    .update({ archived_at: archivedAt, is_favorite: false })
+    .eq("id", linkId);
+  ensureSuccess(error);
+  return archivedAt;
+}
+
+export async function restoreLibraryLink(linkId: string) {
+  const { error } = await createClient().from("links").update({ archived_at: null }).eq("id", linkId);
+  ensureSuccess(error);
+}
+
+export async function deleteLibraryLinkPermanently(linkId: string) {
   const { error } = await createClient().from("links").delete().eq("id", linkId);
   ensureSuccess(error);
 }
@@ -227,6 +253,39 @@ export async function setLibraryLinkFavorite(linkId: string, isFavorite: boolean
   ensureSuccess(error);
 }
 
+export async function renameLibraryTag(userId: string, currentName: string, nextName: string) {
+  const result = await createClient()
+    .from("tags")
+    .update({ name: nextName })
+    .eq("user_id", userId)
+    .eq("name", currentName)
+    .select("name")
+    .single();
+
+  ensureSuccess(result.error);
+
+  if (!result.data) {
+    throw new Error("The tag could not be renamed.");
+  }
+
+  return result.data.name;
+}
+
+export async function deleteLibraryTag(userId: string, name: string) {
+  const result = await createClient()
+    .from("tags")
+    .delete()
+    .eq("user_id", userId)
+    .eq("name", name)
+    .select("id")
+    .single();
+
+  ensureSuccess(result.error);
+
+  if (!result.data) {
+    throw new Error("The tag could not be deleted.");
+  }
+}
 export async function saveProfileName(userId: string, name: string) {
   const { error } = await createClient().from("profiles").upsert({ id: userId, display_name: name }, { onConflict: "id" });
   ensureSuccess(error);
