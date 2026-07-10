@@ -31,3 +31,17 @@ export const ResourcePreview: Story = {
     </div>
   ),
 };
+export const TransparentLogo: Story = {
+  render: () => (
+    <div className="flex w-[var(--preview-card-demo-width)] p-[var(--space-24)] text-[var(--content-primary)]">
+      <LinkPreviewCard
+        title="Droplet"
+        description="A logo with a transparent background keeps the preview surface clean."
+        url="droplet.example"
+        logoSrc="/mock-sites/transparent-logo.svg"
+        logoAlt="Droplet logo"
+        logoFallback="droplet.example"
+      />
+    </div>
+  ),
+};
