@@ -17,6 +17,10 @@ The MVP should prove that Keepnoto can help users save links with context and fi
 - Empty states.
 - Basic responsive layout.
 
+## MVP Authentication
+
+- Google OAuth is the only sign-in method for this MVP.
+- Email Magic Links, one-time email codes, Resend, and custom SMTP are deferred until a verified product domain is available.
 ## Out Of Scope
 
 - AI summaries.
