@@ -723,7 +723,7 @@ export function LinkPreviewCard({
 
       <div
         className="relative flex size-[var(--preview-media-size)] shrink-0 items-center justify-center overflow-hidden rounded-[var(--radius-16)]"
-        style={{ backgroundColor: previewAssetSrc ? undefined : logoColor, color: "var(--white)" }}
+        style={{ backgroundColor: previewAssetSrc || logoAssetSrc ? undefined : logoColor, color: "var(--white)" }}
       >
         {previewAssetSrc ? (
           <MediaAssetImage src={previewAssetSrc} alt={previewImageAlt} fit="cover" onError={() => setFailedPreviewSrc(previewAssetSrc)} />
