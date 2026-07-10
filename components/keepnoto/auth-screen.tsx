@@ -1,88 +1,43 @@
 "use client";
 
 import * as React from "react";
-import { OtpField } from "@/components/keepnoto/otp-field";
-import { BrandLogo, Button, Icon, Icons, TextField } from "@/components/keepnoto/product-components";
-
-const LOCAL_PREVIEW_CODE = "246810";
-const RESEND_DELAY_SECONDS = 60;
-
-type AuthStep = "email" | "code";
+import { BrandLogo, Button } from "@/components/keepnoto/product-components";
+import { createClient } from "@/lib/supabase/client";
 
 export type AuthScreenProps = {
-  onAuthenticated: (email: string) => void;
+  error?: string | null;
 };
 
-export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
-  const [step, setStep] = React.useState<AuthStep>("email");
-  const [email, setEmail] = React.useState("");
-  const [code, setCode] = React.useState("");
-  const [error, setError] = React.useState<string | null>(null);
-  const [secondsUntilResend, setSecondsUntilResend] = React.useState(0);
-  const codeInputRef = React.useRef<HTMLInputElement>(null);
+function GoogleMark() {
+  return (
+    <svg aria-hidden="true" className="size-[var(--size-20)]" viewBox="0 0 24 24">
+      <path d="M21.35 12.24c0-.71-.06-1.39-.18-2.04H12v3.86h5.24a4.48 4.48 0 0 1-1.94 2.94v2.5h3.14c1.84-1.7 2.91-4.2 2.91-7.26Z" fill="#4285F4" />
+      <path d="M12 21.75c2.63 0 4.84-.87 6.45-2.36l-3.14-2.44c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.71-5.46-4.02H3.3v2.52A9.75 9.75 0 0 0 12 21.75Z" fill="#34A853" />
+      <path d="M6.54 13.85A5.87 5.87 0 0 1 6.23 12c0-.64.11-1.26.31-1.85V7.63H3.3A9.75 9.75 0 0 0 2.25 12c0 1.57.38 3.06 1.05 4.37l3.24-2.52Z" fill="#FBBC05" />
+      <path d="M12 6.13c1.43 0 2.71.49 3.72 1.45l2.79-2.8C16.83 3.21 14.63 2.25 12 2.25A9.75 9.75 0 0 0 3.3 7.63l3.24 2.52C7.31 7.84 9.46 6.13 12 6.13Z" fill="#EA4335" />
+    </svg>
+  );
+}
 
-  React.useEffect(() => {
-    if (secondsUntilResend <= 0) {
-      return;
+export function AuthScreen({ error }: AuthScreenProps) {
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [requestError, setRequestError] = React.useState<string | null>(null);
+
+  const continueWithGoogle = async () => {
+    setIsSubmitting(true);
+    setRequestError(null);
+
+    const { error: oauthError } = await createClient().auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
+
+    if (oauthError) {
+      setRequestError("Google sign-in could not start. Please try again.");
+      setIsSubmitting(false);
     }
-
-    const timeoutId = window.setTimeout(() => setSecondsUntilResend((current) => Math.max(0, current - 1)), 1000);
-    return () => window.clearTimeout(timeoutId);
-  }, [secondsUntilResend]);
-
-  React.useEffect(() => {
-    if (step === "code") {
-      codeInputRef.current?.focus();
-    }
-  }, [step]);
-
-  const submitEmail = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
-      setError("Enter a valid email address.");
-      return;
-    }
-
-    setEmail(normalizedEmail);
-    setCode("");
-    setError(null);
-    setSecondsUntilResend(RESEND_DELAY_SECONDS);
-    setStep("code");
-  };
-
-  const submitCode = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (code.length !== 6) {
-      setError("Enter the six-digit code from your email.");
-      return;
-    }
-
-    if (process.env.NODE_ENV !== "development") {
-      setError("Email verification will be available after authentication is connected.");
-      return;
-    }
-
-    if (code !== LOCAL_PREVIEW_CODE) {
-      setError("That code is not correct. Try again.");
-      return;
-    }
-
-    setError(null);
-    onAuthenticated(email);
-  };
-
-  const resendCode = () => {
-    if (secondsUntilResend > 0) {
-      return;
-    }
-
-    setCode("");
-    setError(null);
-    setSecondsUntilResend(RESEND_DELAY_SECONDS);
-    codeInputRef.current?.focus();
   };
 
   return (
@@ -91,87 +46,19 @@ export function AuthScreen({ onAuthenticated }: AuthScreenProps) {
         <div className="flex size-[var(--size-48)] items-center justify-center">
           <BrandLogo size={40} />
         </div>
-
         <div className="mt-[var(--space-24)] flex w-full flex-col items-center gap-[var(--space-8)] text-center">
-          <h1 className="type-title text-[var(--content-primary)]">
-            {step === "email" ? "Welcome to Keepnoto" : "Check your inbox"}
-          </h1>
+          <h1 className="type-title text-[var(--content-primary)]">Welcome to Keepnoto</h1>
           <p className="max-w-[var(--auth-copy-width)] type-16 text-[var(--content-muted)]">
-            {step === "email"
-              ? "Save links with the context that makes them worth returning to."
-              : `Enter the six-digit code sent to ${email}.`}
+            Save links with the context that makes them worth returning to.
           </p>
         </div>
-
-        {step === "email" ? (
-          <form className="mt-[var(--space-32)] flex w-full flex-col gap-[var(--space-16)]" onSubmit={submitEmail}>
-            <label className="flex flex-col gap-[var(--space-8)]">
-              <span className="type-label text-[var(--content-muted)]">Email</span>
-              <TextField
-                aria-invalid={Boolean(error) || undefined}
-                autoComplete="email"
-                autoFocus
-                className="w-full bg-[var(--control-surface)]"
-                icon={Icons.mail}
-                inputMode="email"
-                onChange={(event) => {
-                  setEmail(event.currentTarget.value);
-                  setError(null);
-                }}
-                placeholder="you@example.com"
-                type="email"
-                value={email}
-              />
-            </label>
-            {error ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{error}</p> : null}
-            <Button className="h-[var(--size-48)] w-full" tone="primary" type="submit">
-              Continue
-            </Button>
-            <p className="text-center type-12 text-[var(--content-muted)]">We will email you a one-time sign-in code.</p>
-          </form>
-        ) : (
-          <form className="mt-[var(--space-32)] flex w-full flex-col gap-[var(--space-16)]" onSubmit={submitCode}>
-            <OtpField
-              ref={codeInputRef}
-              aria-label="Verification code"
-              invalid={Boolean(error)}
-              onValueChange={(nextCode) => {
-                setCode(nextCode);
-                setError(null);
-              }}
-              value={code}
-            />
-            {process.env.NODE_ENV === "development" ? (
-              <p className="text-center type-12 text-[var(--content-muted)]">Local preview code: {LOCAL_PREVIEW_CODE}</p>
-            ) : null}
-            {error ? <p aria-live="polite" className="text-center type-12 text-[var(--danger)]">{error}</p> : null}
-            <Button className="h-[var(--size-48)] w-full" disabled={code.length !== 6} tone="primary" type="submit">
-              <Icon icon={Icons.check} size={20} strokeWidth={2} aria-hidden="true" />
-              Continue to library
-            </Button>
-            <div className="flex items-center justify-between gap-[var(--space-16)]">
-              <button
-                className="type-12-semibold text-[var(--content-muted)] transition-colors hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)]"
-                onClick={() => {
-                  setStep("email");
-                  setCode("");
-                  setError(null);
-                }}
-                type="button"
-              >
-                Use another email
-              </button>
-              <button
-                className="type-12-semibold text-[var(--content-muted)] transition-colors hover:text-[var(--content-primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:cursor-not-allowed disabled:opacity-45"
-                disabled={secondsUntilResend > 0}
-                onClick={resendCode}
-                type="button"
-              >
-                {secondsUntilResend > 0 ? `Resend in ${secondsUntilResend}s` : "Resend code"}
-              </button>
-            </div>
-          </form>
-        )}
+        <div className="mt-[var(--space-32)] flex w-full flex-col gap-[var(--space-16)]">
+          <Button className="h-[var(--size-48)] w-full" disabled={isSubmitting} onClick={() => void continueWithGoogle()} tone="secondary" type="button">
+            <GoogleMark />
+            {isSubmitting ? "Opening Google..." : "Continue with Google"}
+          </Button>
+          {error || requestError ? <p aria-live="polite" className="text-center type-12 text-[var(--danger)]">{requestError ?? "Sign-in was not completed. Please try again."}</p> : null}
+        </div>
       </section>
     </main>
   );

@@ -7,7 +7,6 @@ import { Dropdown, DropdownItem } from "@/components/keepnoto/dropdown";
 import { LargeTextField } from "@/components/keepnoto/large-text-field";
 import { MultiSelect, type MultiSelectOption } from "@/components/keepnoto/multi-select";
 import { Tooltip } from "@/components/keepnoto/tooltip";
-import { AuthScreen } from "@/components/keepnoto/auth-screen";
 import {
   FILTER_TAB_GAP,
   FILTER_TAB_MORE_WIDTH,
@@ -18,6 +17,8 @@ import {
 } from "@/components/keepnoto/design-constants";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { LinkCard } from "@/components/keepnoto/link-card";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
+import { deleteLibraryLink, loadLibrary, saveLibraryLink, saveProfileName, setLibraryLinkFavorite } from "@/lib/supabase/library";
 import { cn } from "@/lib/utils";
 import {
   BrandLogo,
@@ -45,10 +46,6 @@ const filterTabs = [
 
 const SAVED_REASON_FIELD_LABEL = "Why I saved this";
 const SAVED_REASON_PLACEHOLDER = "Why will this matter later?";
-const LIBRARY_STORAGE_KEY = "keepnoto.library.v1";
-const PROFILE_STORAGE_KEY = "keepnoto.profile.v1";
-const AUTH_STORAGE_KEY = "keepnoto.auth-preview.v1";
-const AUTH_SIGNED_OUT_KEY = "keepnoto.auth-preview.signed-out.v1";
 const MAX_AVATAR_FILE_BYTES = 1_500_000;
 
 const sortOptions = [
@@ -80,12 +77,6 @@ type SavedLink = {
   favorite?: boolean;
 };
 
-type PersistedLibraryState = {
-  availableTagValues?: string[];
-  favoriteLinkIds?: string[];
-  links?: SavedLink[];
-};
-
 type LinkPreviewMetadata = {
   ok: boolean;
   url?: string;
@@ -105,20 +96,12 @@ type UserProfile = {
   avatarDataUrl?: string;
 };
 
-const DEFAULT_USER_PROFILE: UserProfile = {
-  name: "Nora Keep",
-  email: "nora@keepnoto.app",
-};
-
-type LocalSession = {
+type AuthenticatedSession = {
+  id: string;
   email: string;
 };
 
 function createUserProfile(email: string): UserProfile {
-  if (email === DEFAULT_USER_PROFILE.email) {
-    return DEFAULT_USER_PROFILE;
-  }
-
   const emailName = email.split("@")[0] ?? "";
   const name = emailName
     .split(/[._-]+/)
@@ -143,105 +126,21 @@ const knownPlatformNames: Record<string, string> = {
   "youtu.be": "YouTube",
 };
 
-const savedLinks: SavedLink[] = [
-  {
-    id: "supabase-auth",
-    title: "Supabase Auth - Documentation",
-    domain: "supabase.com/docs/guides/auth",
-    source: "supabase.com",
-    description:
-      "The cleanest explanation of magic links and OAuth providers. The session refresh flow finally clicked.",
-    previewTitle: "Supabase Docs",
-    previewDescription:
-      "Production-ready backend for app developers.\nPostgres, Auth, Storage and Edge Functions.",
-    savedReason:
-      "The cleanest explanation of magic links and OAuth providers I found. Coming back when I wire auth into the side project.",
-    href: "https://supabase.com/docs/guides/auth",
-    type: "Documentation",
-    collection: null,
-    tags: ["auth", "docs", "supabase"],
-    addedDate: "2 days ago",
-    logoColor: "var(--favicon-1)",
-  },
-  {
-    id: "linear-design",
-    title: "Linear Design System Notes",
-    domain: "linear.app/changelog/design-system",
-    source: "linear.app",
-    description:
-      "A quiet reference for spacing, density, and focused product surfaces that still feel personal.",
-    previewTitle: "Linear Changelog",
-    previewDescription:
-      "Product updates and design notes from Linear. Useful for studying crisp workflows and calm defaults.",
-    savedReason:
-      "Keeping this as a reference for dense product UI that still feels calm, readable, and intentional.",
-    href: "https://linear.app/changelog/design-system",
-    type: "Reference",
-    collection: "Design references",
-    tags: ["design", "frontend"],
-    addedDate: "3 days ago",
-    logoColor: "var(--favicon-2)",
-  },
-  {
-    id: "react-cache",
-    title: "React Cache Patterns",
-    domain: "react.dev/reference/react/cache",
-    source: "react.dev",
-    description:
-      "A compact explanation of where cache boundaries help and where they make data flow harder to reason about.",
-    previewTitle: "React Reference",
-    previewDescription:
-      "Official React API reference with examples for cache and server rendering patterns.",
-    href: "https://react.dev/reference/react/cache",
-    type: "Guide",
-    collection: "React",
-    tags: ["react", "frontend", "docs"],
-    addedDate: "5 days ago",
-    logoColor: "var(--favicon-3)",
-  },
-  {
-    id: "frontend-checklist",
-    title: "Frontend Review Checklist",
-    domain: "frontendchecklist.io",
-    source: "frontendchecklist.io",
-    description:
-      "Useful before shipping a page: accessibility, metadata, performance, responsive behavior, and edge cases.",
-    previewTitle: "Frontend Checklist",
-    previewDescription:
-      "A practical checklist for production frontend quality across UX, HTML, CSS, JavaScript, and performance.",
-    href: "https://frontendchecklist.io",
-    type: "Checklist",
-    collection: null,
-    tags: ["frontend", "docs"],
-    addedDate: "1 week ago",
-    logoColor: "var(--favicon-4)",
-  },
-  {
-    id: "supabase-rls",
-    title: "Supabase Row Level Security",
-    domain: "supabase.com/docs/guides/database/postgres/row-level-security",
-    source: "supabase.com",
-    description:
-      "The examples are direct enough to keep around for auth policy work and quick security reviews.",
-    previewTitle: "Supabase RLS",
-    previewDescription:
-      "Guides for Postgres row level security, policies, and secure data access in Supabase projects.",
-    href: "https://supabase.com/docs/guides/database/postgres/row-level-security",
-    type: "Documentation",
-    collection: null,
-    tags: ["auth", "docs", "supabase"],
-    addedDate: "9 days ago",
-    logoColor: "var(--favicon-5)",
-  },
-];
-const linkLogoColors = [
-  "var(--favicon-1)",
-  "var(--favicon-2)",
-  "var(--favicon-3)",
-  "var(--favicon-4)",
-  "var(--favicon-5)",
-];
-
+const fallbackLink: SavedLink = {
+  id: "",
+  title: "",
+  domain: "",
+  source: "",
+  description: "",
+  previewTitle: "",
+  previewDescription: "",
+  href: "",
+  type: "Link",
+  collection: null,
+  tags: [],
+  addedDate: "",
+  logoColor: "var(--favicon-1)",
+};
 function normalizeTagValue(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase().slice(0, TAG_MAX_LENGTH);
 }
@@ -394,74 +293,6 @@ function SocialLogo({ name }: { name: SocialLogoName }) {
 }
 
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
-}
-
-function isSavedLink(value: unknown): value is SavedLink {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const requiredStringKeys: Array<keyof SavedLink> = [
-    "id",
-    "title",
-    "domain",
-    "source",
-    "description",
-    "previewTitle",
-    "previewDescription",
-    "href",
-    "type",
-    "addedDate",
-    "logoColor",
-  ];
-
-  return (
-    requiredStringKeys.every((key) => typeof value[key] === "string") &&
-    (value.collection === null || typeof value.collection === "string") &&
-    isStringArray(value.tags) &&
-    (value.savedReason === undefined || typeof value.savedReason === "string") &&
-    (value.faviconSrc === undefined || typeof value.faviconSrc === "string") &&
-    (value.previewLogoSrc === undefined || typeof value.previewLogoSrc === "string") &&
-    (value.metadataImageSrc === undefined || typeof value.metadataImageSrc === "string") &&
-    (value.favorite === undefined || typeof value.favorite === "boolean")
-  );
-}
-
-function isUserProfile(value: unknown): value is UserProfile {
-  return (
-    isRecord(value) &&
-    typeof value.name === "string" &&
-    typeof value.email === "string" &&
-    (value.avatarDataUrl === undefined || typeof value.avatarDataUrl === "string")
-  );
-}
-
-function readPersistedProfileState(storageKey: string) {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  try {
-    const rawState = window.localStorage.getItem(storageKey);
-
-    if (!rawState) {
-      return undefined;
-    }
-
-    const parsedState: unknown = JSON.parse(rawState);
-
-    return isUserProfile(parsedState) ? parsedState : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function getProfileInitials(profile: UserProfile) {
   const source = profile.name.trim() || profile.email.trim() || "User";
   const parts = source.split(/[\s._-]+/).filter(Boolean);
@@ -470,93 +301,33 @@ function getProfileInitials(profile: UserProfile) {
   return initials.toUpperCase();
 }
 
-function readPersistedLibraryState(storageKey: string) {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
-  try {
-    const rawState = window.localStorage.getItem(storageKey);
-
-    if (!rawState) {
-      return undefined;
-    }
-
-    const parsedState: unknown = JSON.parse(rawState);
-
-    if (!isRecord(parsedState)) {
-      return undefined;
-    }
-
-    const links = Array.isArray(parsedState.links) && parsedState.links.every(isSavedLink) ? parsedState.links : undefined;
-    const favoriteLinkIds = isStringArray(parsedState.favoriteLinkIds) ? parsedState.favoriteLinkIds : undefined;
-    const availableTagValues = isStringArray(parsedState.availableTagValues) ? parsedState.availableTagValues : undefined;
-
-    return { availableTagValues, favoriteLinkIds, links } satisfies PersistedLibraryState;
-  } catch {
-    return undefined;
-  }
-}
-function isLocalSession(value: unknown): value is LocalSession {
-  return isRecord(value) && typeof value.email === "string";
-}
-
-function getAccountStorageKey(baseKey: string, email: string) {
-  return email === DEFAULT_USER_PROFILE.email ? baseKey : `${baseKey}:${encodeURIComponent(email.toLowerCase())}`;
-}
-
 export default function Home() {
-  const [authSession, setAuthSession] = React.useState<LocalSession | null | undefined>(undefined);
+  const [authSession, setAuthSession] = React.useState<AuthenticatedSession | null | undefined>(undefined);
 
   React.useEffect(() => {
-    let nextSession: LocalSession | null = null;
+    let mounted = true;
 
-    try {
-      const storedSession = window.localStorage.getItem(AUTH_STORAGE_KEY);
-      const parsedSession: unknown = storedSession ? JSON.parse(storedSession) : null;
-
-      if (isLocalSession(parsedSession)) {
-        nextSession = parsedSession;
-      } else {
-        const explicitlySignedOut = window.localStorage.getItem(AUTH_SIGNED_OUT_KEY) === "1";
-        const hasLegacyData =
-          window.localStorage.getItem(LIBRARY_STORAGE_KEY) !== null ||
-          window.localStorage.getItem(PROFILE_STORAGE_KEY) !== null;
-
-        if (!explicitlySignedOut && hasLegacyData) {
-          nextSession = { email: DEFAULT_USER_PROFILE.email };
-          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
-        }
+    void createSupabaseClient().auth.getUser().then(({ data, error }) => {
+      if (!mounted) {
+        return;
       }
-    } catch {
-      nextSession = null;
-    }
 
-    queueMicrotask(() => setAuthSession(nextSession));
+      if (error || !data.user.email) {
+        window.location.replace("/login");
+        return;
+      }
+
+      setAuthSession({ id: data.user.id, email: data.user.email });
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const handleAuthenticated = (email: string) => {
-    const nextSession = { email };
-
-    try {
-      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
-      window.localStorage.removeItem(AUTH_SIGNED_OUT_KEY);
-    } catch {
-      // The local preview remains usable even if persistence is unavailable.
-    }
-
-    setAuthSession(nextSession);
-  };
-
-  const handleSignOut = () => {
-    try {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-      window.localStorage.setItem(AUTH_SIGNED_OUT_KEY, "1");
-    } catch {
-      // Signing out should still update the current view.
-    }
-
-    setAuthSession(null);
+  const handleSignOut = async () => {
+    await createSupabaseClient().auth.signOut();
+    window.location.assign("/login");
   };
 
   if (authSession === undefined) {
@@ -568,22 +339,18 @@ export default function Home() {
   }
 
   if (authSession === null) {
-    return <AuthScreen onAuthenticated={handleAuthenticated} />;
+    return null;
   }
 
   return <KeepnotoWorkspace key={authSession.email} onSignOut={handleSignOut} session={authSession} />;
 }
 
-function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSignOut: () => void }) {
-  const libraryStorageKey = getAccountStorageKey(LIBRARY_STORAGE_KEY, session.email);
-  const profileStorageKey = getAccountStorageKey(PROFILE_STORAGE_KEY, session.email);
-  const initialLinks = session.email === DEFAULT_USER_PROFILE.email ? savedLinks : [];
+function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSession; onSignOut: () => Promise<void> }) {
+  const initialLinks: SavedLink[] = [];
   const initialProfile = createUserProfile(session.email);
   const [libraryBoundary, setLibraryBoundary] = React.useState<HTMLElement | null>(null);
   const [links, setLinks] = React.useState<SavedLink[]>(initialLinks);
-  const [availableTagValues, setAvailableTagValues] = React.useState(() =>
-    initialLinks.length > 0 ? filterTabs.slice(1).map((tab) => normalizeTagValue(tab.label)) : []
-  );
+  const [availableTagValues, setAvailableTagValues] = React.useState<string[]>([]);
   const [activeTab, setActiveTab] = React.useState(filterTabs[0].label);
   const [searchQuery, setSearchQuery] = React.useState("");
   const searchInputRef = React.useRef<HTMLInputElement>(null);
@@ -591,7 +358,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
   const [sortOptionId, setSortOptionId] = React.useState<SortOptionId>("recent");
   const [selectedLinkId, setSelectedLinkId] = React.useState(initialLinks[0]?.id ?? "");
   const [favoriteLinkIds, setFavoriteLinkIds] = React.useState<Set<string>>(() => new Set());
-  const [libraryStorageReady, setLibraryStorageReady] = React.useState(false);
+  const [libraryReady, setLibraryReady] = React.useState(false);
+  const [libraryError, setLibraryError] = React.useState<string | null>(null);
   const [favoriteTransitionLinkId, setFavoriteTransitionLinkId] = React.useState<string | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = React.useState(false);
   const [saveDialogTagsOpen, setSaveDialogTagsOpen] = React.useState(false);
@@ -605,6 +373,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
   const [saveDialogMode, setSaveDialogMode] = React.useState<"create" | "edit">("create");
   const [editingLinkId, setEditingLinkId] = React.useState<string | null>(null);
   const [isSavingLink, setIsSavingLink] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
   const [draftTitle, setDraftTitle] = React.useState("");
   const [draftUrl, setDraftUrl] = React.useState("");
   const [draftTags, setDraftTags] = React.useState<string[]>([]);
@@ -622,72 +391,40 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
   });
 
   React.useEffect(() => {
-    const persistedState = readPersistedLibraryState(libraryStorageKey);
-    const persistedLinks = persistedState?.links;
-    const persistedFavoriteLinkIds = persistedState?.favoriteLinkIds;
-    const persistedAvailableTagValues = persistedState?.availableTagValues;
+    let active = true;
 
-    queueMicrotask(() => {
-      if (persistedLinks) {
-        setLinks(persistedLinks);
-
-        if (persistedLinks[0]) {
-          setSelectedLinkId(persistedLinks[0].id);
+    void loadLibrary(session.id)
+      .then((snapshot) => {
+        if (!active) {
+          return;
         }
-      }
 
-      if (persistedFavoriteLinkIds) {
-        setFavoriteLinkIds(new Set(persistedFavoriteLinkIds));
-      }
+        const nextProfile = snapshot.profile
+          ? { ...snapshot.profile, email: session.email }
+          : createUserProfile(session.email);
 
-      if (persistedAvailableTagValues) {
-        setAvailableTagValues((currentValues) =>
-          Array.from(new Set([...currentValues, ...persistedAvailableTagValues.map(normalizeTagValue).filter(Boolean)]))
-        );
-      }
+        setLinks(snapshot.links);
+        setAvailableTagValues(snapshot.tags);
+        setFavoriteLinkIds(new Set(snapshot.links.filter((link) => link.favorite).map((link) => link.id)));
+        setSelectedLinkId(snapshot.links[0]?.id ?? "");
+        setProfile(nextProfile);
+        setProfileNameDraft(nextProfile.name);
+        setLibraryError(null);
+        setLibraryReady(true);
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
 
-      setLibraryStorageReady(true);
-    });
-  }, [libraryStorageKey]);
+        setLibraryError("Could not load your library. Refresh the page and try again.");
+        setLibraryReady(true);
+      });
 
-
-  React.useEffect(() => {
-    if (!libraryStorageReady) {
-      return;
-    }
-
-    const stateToPersist: PersistedLibraryState = {
-      availableTagValues,
-      favoriteLinkIds: Array.from(favoriteLinkIds),
-      links,
+    return () => {
+      active = false;
     };
-
-    try {
-      window.localStorage.setItem(libraryStorageKey, JSON.stringify(stateToPersist));
-    } catch {
-      // Saving should never break the in-memory library flow.
-    }
-  }, [availableTagValues, favoriteLinkIds, libraryStorageKey, libraryStorageReady, links]);
-
-  React.useEffect(() => {
-    const persistedProfile = readPersistedProfileState(profileStorageKey);
-
-    queueMicrotask(() => {
-      if (persistedProfile) {
-        setProfile(persistedProfile);
-        setProfileNameDraft(persistedProfile.name);
-      }
-    });
-  }, [profileStorageKey]);
-
-  React.useEffect(() => {
-    try {
-      window.localStorage.setItem(profileStorageKey, JSON.stringify(profile));
-    } catch {
-      // Profile settings should never break the app shell.
-    }
-  }, [profile, profileStorageKey]);
-
+  }, [session.id, session.email]);
 
   const tagOptions = React.useMemo(
     () => toTagOptions([...availableTagValues, ...links.flatMap((link) => link.tags)]),
@@ -789,10 +526,10 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     () => orderLinksByFavorite(sortedLinks, favoriteLinkIds),
     [sortedLinks, favoriteLinkIds]
   );
-  const hasLibraryCards = libraryStorageReady && orderedLinks.length > 0;
+  const hasLibraryCards = libraryReady && orderedLinks.length > 0;
   const activeSortOption = sortOptions.find((option) => option.id === sortOptionId) ?? sortOptions[0];
   const selectedLink = React.useMemo(
-    () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? links[0] ?? savedLinks[0],
+    () => orderedLinks.find((link) => link.id === selectedLinkId) ?? orderedLinks[0] ?? links[0] ?? fallbackLink,
     [links, orderedLinks, selectedLinkId]
   );
   const emptyLibraryTitle = normalizedSearchQuery
@@ -1003,6 +740,9 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     }
 
     setProfile((currentProfile) => ({ ...currentProfile, name: nextName }));
+    void saveProfileName(session.id, nextName).catch(() => {
+      setAvatarError("Could not save your name. Please try again.");
+    });
   };
 
   const handleAvatarFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1052,7 +792,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
 
   const handleAccountSignOut = () => {
     setProfileDialogOpen(false);
-    onSignOut();
+    void onSignOut();
   };
 
   
@@ -1075,6 +815,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     setSaveDialogMode("create");
     setEditingLinkId(null);
     setIsSavingLink(false);
+    setSaveError(null);
     setSaveDialogTagsOpen(false);
     resetSaveDialog();
     setDraftTitle(initialValues?.title ?? "");
@@ -1085,6 +826,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     setSaveDialogMode("edit");
     setEditingLinkId(link.id);
     setIsSavingLink(false);
+    setSaveError(null);
     setDraftTitle(link.title);
     setDraftUrl(link.href);
     setDraftTags(link.tags);
@@ -1130,6 +872,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     }
 
     setIsSavingLink(true);
+    setSaveError(null);
 
     const linkParts = getLinkParts(rawUrl);
     const normalizedTags = Array.from(new Set(draftTags.map(normalizeTagValue).filter(Boolean)));
@@ -1143,68 +886,69 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     const metadataImage = metadata?.image?.trim();
     const resolvedHref = metadata?.url ?? linkParts.href;
 
-    setAvailableTagValues((currentValues) => Array.from(new Set([...currentValues, ...normalizedTags])));
+    try {
+      if (saveDialogMode === "edit") {
+        const editedLink = links.find((link) => link.id === editingLinkId);
 
-    if (saveDialogMode === "edit") {
-      const editedLink = links.find((link) => link.id === editingLinkId);
+        if (!editedLink) {
+          setSaveError("This link is no longer available. Refresh the page and try again.");
+          return;
+        }
 
-      if (!editedLink) {
-        setIsSavingLink(false);
-        return;
+        const hrefChanged = editedLink.href !== resolvedHref;
+        const savedLink = await saveLibraryLink(session.id, {
+          ...editedLink,
+          title,
+          domain: linkParts.domain,
+          source: metadata?.domain ?? linkParts.source,
+          description: metadataDescription ?? (hrefChanged ? "Saved manually. Preview metadata was not available from this URL." : editedLink.description),
+          previewTitle: metadataTitle ?? metadataSiteName ?? title,
+          previewDescription:
+            metadataDescription ?? (hrefChanged ? "No preview description was provided by the saved URL." : editedLink.previewDescription),
+          href: resolvedHref,
+          faviconSrc: metadataIcon ?? (hrefChanged ? undefined : editedLink.faviconSrc),
+          previewLogoSrc: metadataLogo ?? metadataIcon ?? (hrefChanged ? undefined : editedLink.previewLogoSrc),
+          metadataImageSrc: metadataImage ?? (hrefChanged ? undefined : editedLink.metadataImageSrc),
+          type: metadata?.type === "article" ? "Article" : hrefChanged ? "Link" : editedLink.type,
+          tags: normalizedTags,
+          savedReason: savedReason || undefined,
+        });
+
+        setAvailableTagValues((currentValues) => Array.from(new Set([...currentValues, ...savedLink.tags])));
+        setLinks((currentLinks) => currentLinks.map((link) => (link.id === savedLink.id ? savedLink : link)));
+        setSelectedLinkId(savedLink.id);
+      } else {
+        const savedLink = await saveLibraryLink(session.id, {
+          title,
+          domain: linkParts.domain,
+          source: metadata?.domain ?? linkParts.source,
+          description: metadataDescription ?? "Saved manually. Preview metadata was not available from this URL.",
+          savedReason: savedReason || undefined,
+          previewTitle: metadataTitle ?? metadataSiteName ?? title,
+          previewDescription: metadataDescription ?? "No preview description was provided by the saved URL.",
+          href: resolvedHref,
+          faviconSrc: metadataIcon,
+          previewLogoSrc: metadataLogo ?? metadataIcon,
+          metadataImageSrc: metadataImage,
+          type: metadata?.type === "article" ? "Article" : "Link",
+          collection: null,
+          tags: normalizedTags,
+        });
+
+        setAvailableTagValues((currentValues) => Array.from(new Set([...currentValues, ...savedLink.tags])));
+        setLinks((currentLinks) => [savedLink, ...currentLinks]);
+        setActiveTab("All links");
+        setSearchQuery("");
+        setSelectedLinkId(savedLink.id);
       }
 
-      const hrefChanged = editedLink.href !== resolvedHref;
-      const updatedLink: SavedLink = {
-        ...editedLink,
-        title,
-        domain: linkParts.domain,
-        source: metadata?.domain ?? linkParts.source,
-        description: metadataDescription ?? (hrefChanged ? "Saved manually. Preview metadata was not available from this URL." : editedLink.description),
-        previewTitle: metadataTitle ?? metadataSiteName ?? title,
-        previewDescription:
-          metadataDescription ?? (hrefChanged ? "No preview description was provided by the saved URL." : editedLink.previewDescription),
-        href: resolvedHref,
-        faviconSrc: metadataIcon ?? (hrefChanged ? undefined : editedLink.faviconSrc),
-        previewLogoSrc: metadataLogo ?? metadataIcon ?? (hrefChanged ? undefined : editedLink.previewLogoSrc),
-        metadataImageSrc: metadataImage ?? (hrefChanged ? undefined : editedLink.metadataImageSrc),
-        type: metadata?.type === "article" ? "Article" : hrefChanged ? "Link" : editedLink.type,
-        tags: normalizedTags,
-        savedReason: savedReason || undefined,
-      };
-
-      setLinks((currentLinks) => currentLinks.map((link) => (link.id === updatedLink.id ? updatedLink : link)));
-      setSelectedLinkId(updatedLink.id);
       setSaveDialogOpen(false);
       setSaveDialogTagsOpen(false);
-      return;
+    } catch {
+      setSaveError("Could not save this link. Please try again.");
+    } finally {
+      setIsSavingLink(false);
     }
-
-    const nextLink: SavedLink = {
-      id: `saved-${Date.now()}`,
-      title,
-      domain: linkParts.domain,
-      source: metadata?.domain ?? linkParts.source,
-      description: metadataDescription ?? "Saved manually. Preview metadata was not available from this URL.",
-      savedReason: savedReason || undefined,
-      previewTitle: metadataTitle ?? metadataSiteName ?? title,
-      previewDescription: metadataDescription ?? "No preview description was provided by the saved URL.",
-      href: resolvedHref,
-      faviconSrc: metadataIcon,
-      previewLogoSrc: metadataLogo ?? metadataIcon,
-      metadataImageSrc: metadataImage,
-      type: metadata?.type === "article" ? "Article" : "Link",
-      collection: null,
-      tags: normalizedTags,
-      addedDate: "Just now",
-      logoColor: linkLogoColors[links.length % linkLogoColors.length],
-    };
-
-    setLinks((currentLinks) => [nextLink, ...currentLinks]);
-    setActiveTab("All links");
-    setSearchQuery("");
-    setSelectedLinkId(nextLink.id);
-    setSaveDialogOpen(false);
-    setSaveDialogTagsOpen(false);
   };
   const selectTab = (tab: string) => {
     const nextLinks = orderLinksByFavorite(
@@ -1213,7 +957,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     );
 
     setActiveTab(tab);
-    setSelectedLinkId(nextLinks[0]?.id ?? links[0]?.id ?? savedLinks[0].id);
+    setSelectedLinkId(nextLinks[0]?.id ?? links[0]?.id ?? fallbackLink.id);
   };
   const openSelectedLink = () => {
     window.open(selectedLink.href, "_blank", "noopener,noreferrer");
@@ -1233,8 +977,16 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     }
   };
 
-  const handleDeleteSelectedLink = () => {
+  const handleDeleteSelectedLink = async () => {
     const deletedLinkId = selectedLink.id;
+
+    try {
+      await deleteLibraryLink(deletedLinkId);
+    } catch {
+      setLibraryError("Could not remove this link. Please try again.");
+      return;
+    }
+
     const nextFavoriteLinkIds = new Set(favoriteLinkIds);
     const remainingLinks = links.filter((link) => link.id !== deletedLinkId);
 
@@ -1249,15 +1001,31 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
     setFavoriteLinkIds(nextFavoriteLinkIds);
     setLinks(remainingLinks);
     setActiveTab(nextActiveTab);
-    setSelectedLinkId(nextSelectedLink?.id ?? savedLinks[0].id);
+    setSelectedLinkId(nextSelectedLink?.id ?? fallbackLink.id);
     setDeleteDialogOpen(false);
   };
+
   const toggleFavorite = (linkId: string) => {
+    const nextFavorite = !favoriteLinkIds.has(linkId);
     const updateFavorite = () => {
       setFavoriteLinkIds((current) => {
         const next = new Set(current);
 
-        if (next.has(linkId)) {
+        if (nextFavorite) {
+          next.add(linkId);
+        } else {
+          next.delete(linkId);
+        }
+
+        return next;
+      });
+      setLinks((currentLinks) => currentLinks.map((link) => (link.id === linkId ? { ...link, favorite: nextFavorite } : link)));
+    };
+    const revertFavorite = () => {
+      setFavoriteLinkIds((current) => {
+        const next = new Set(current);
+
+        if (nextFavorite) {
           next.delete(linkId);
         } else {
           next.add(linkId);
@@ -1265,6 +1033,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
 
         return next;
       });
+      setLinks((currentLinks) => currentLinks.map((link) => (link.id === linkId ? { ...link, favorite: !nextFavorite } : link)));
+      setLibraryError("Could not update this favorite. Please try again.");
     };
     const viewTransitionDocument = document as Document & {
       startViewTransition?: (callback: () => void) => { finished: Promise<void> };
@@ -1273,20 +1043,20 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
 
     if (!viewTransitionDocument.startViewTransition || prefersReducedMotion) {
       updateFavorite();
-      return;
+    } else {
+      flushSync(() => setFavoriteTransitionLinkId(linkId));
+
+      const transition = viewTransitionDocument.startViewTransition(() => {
+        flushSync(updateFavorite);
+      });
+
+      transition.finished.finally(() => {
+        setFavoriteTransitionLinkId((currentLinkId) => (currentLinkId === linkId ? null : currentLinkId));
+      });
     }
 
-    flushSync(() => setFavoriteTransitionLinkId(linkId));
-
-    const transition = viewTransitionDocument.startViewTransition(() => {
-      flushSync(updateFavorite);
-    });
-
-    transition.finished.finally(() => {
-      setFavoriteTransitionLinkId((currentLinkId) => (currentLinkId === linkId ? null : currentLinkId));
-    });
+    void setLibraryLinkFavorite(linkId, nextFavorite).catch(revertFavorite);
   };
-
   return (
     <main className="relative h-dvh w-dvw overflow-hidden p-[var(--space-24)] text-[var(--content-primary)]">
       <svg
@@ -1391,6 +1161,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
               </DialogDescription>
             </div>
 
+            {saveError ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{saveError}</p> : null}
             <form className="flex flex-col gap-[var(--space-16)]" onSubmit={handleSaveLink}>
               <label className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Title</span>
@@ -1636,7 +1407,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
               <div className="flex min-h-[var(--size-32)] w-full items-center justify-between gap-[var(--space-16)]">
                 <div className="flex items-baseline gap-[var(--space-8)]">
                   <h1 className="type-title text-[var(--content-primary)]">Library</h1>
-                  {libraryStorageReady ? (
+                  {libraryReady ? (
                   <span className="type-16 text-[var(--content-muted)]">{orderedLinks.length} links</span>
                 ) : (
                   <span aria-hidden="true" className="h-[var(--space-16)] w-[var(--space-48)] animate-pulse rounded-full bg-[var(--skeleton-muted)]" />
@@ -1669,7 +1440,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
                 </Dropdown>
               </div>
 
-              {libraryStorageReady && links.length > 0 ? (
+              {libraryReady && links.length > 0 ? (
                 <div role="tablist" aria-label="Saved link filters" className="relative mt-[var(--space-20)] flex h-[var(--size-32)] items-center gap-[var(--space-8)] overflow-visible">
                 {visibleFilterTabs.map((item) => (
                   <Tab
@@ -1717,7 +1488,11 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
                   )}
                   onScroll={updateLibraryScrollbar}
                 >
-                  {hasLibraryCards ? (
+                  {libraryError ? (
+                    <div className="flex h-full min-h-[calc(var(--size-48)*6)] flex-col items-center justify-center px-[var(--space-24)] text-center">
+                      <p className="type-16 text-[var(--danger)]">{libraryError}</p>
+                    </div>
+                  ) : hasLibraryCards ? (
                     <div ref={libraryCardStackRef} className="library-card-stack">
                       {orderedLinks.map((link) => (
                         <div
@@ -1792,8 +1567,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
             </section>
           </div>
 
-          <section aria-busy={!libraryStorageReady || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
-            {libraryStorageReady && links.length === 0 ? (
+          <section aria-busy={!libraryReady || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
+            {libraryReady && links.length === 0 ? (
               <div className="flex min-h-[calc(var(--size-48)*5)] w-full flex-col items-center justify-center gap-[var(--space-16)] px-[var(--space-32)] text-center">
                 <span className="flex size-[var(--size-48)] items-center justify-center rounded-[var(--radius-round)] bg-[var(--control-surface)] text-[var(--icon-muted)]">
                   <Icon icon={Icons.link} size={20} strokeWidth={1.8} aria-hidden="true" />
@@ -1804,7 +1579,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
                 </div>
               </div>
             ) : null}
-            <div className={cn("flex w-full flex-col gap-[var(--space-24)]", (!libraryStorageReady || links.length === 0) && "hidden")}>
+            <div className={cn("flex w-full flex-col gap-[var(--space-24)]", (!libraryReady || links.length === 0) && "hidden")}>
               <div className="flex h-[var(--size-48)] w-full items-center justify-between gap-[var(--space-24)]">
                 <h2 className="min-w-0 flex-1 truncate type-title text-[var(--content-primary)]">
                   {selectedLink.title}
@@ -1844,7 +1619,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: LocalSession; onSi
 
             </div>
 
-            <div className={cn("mt-[var(--space-24)] w-full", (!libraryStorageReady || links.length === 0) && "hidden")}>
+            <div className={cn("mt-[var(--space-24)] w-full", (!libraryReady || links.length === 0) && "hidden")}>
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-[var(--space-32)]">
                 <div className="flex min-w-0 flex-col gap-[var(--space-24)]">
                   <div className="flex min-w-0 flex-col gap-[var(--space-8)]">
