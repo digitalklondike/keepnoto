@@ -25,6 +25,7 @@ import Camera01Icon from "@hugeicons/core-free-icons/Camera01Icon";
 import LockPasswordIcon from "@hugeicons/core-free-icons/LockPasswordIcon";
 import Mail01Icon from "@hugeicons/core-free-icons/Mail01Icon";
 import UserIcon from "@hugeicons/core-free-icons/UserIcon";
+import Logout01Icon from "@hugeicons/core-free-icons/Logout01Icon";
 
 export type AppIcon = IconSvgElement;
 
@@ -49,6 +50,7 @@ export const Icons = {
   link: Link01Icon,
   lock: LockPasswordIcon,
   mail: Mail01Icon,
+  logout: Logout01Icon,
   pin: FilePinIcon,
   search: Search01Icon,
   share: Share08Icon,
