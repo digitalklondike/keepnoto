@@ -499,10 +499,14 @@ export function KeepnotoWorkspace({ session }: { session: AuthenticatedSession }
   );
   const hasLibraryCards = libraryReady && orderedLinks.length > 0;
   const activeSortOption = sortOptions.find((option) => option.id === sortOptionId) ?? sortOptions[0];
-  const selectedLink = React.useMemo(
-    () => selectVisibleLink(orderedLinks, selectedLinkId) ?? fallbackLink,
-    [orderedLinks, selectedLinkId]
-  );
+  const selectedLink = React.useMemo(() => {
+    // Searching narrows the library list, not the link currently being read.
+    if (normalizedSearchQuery) {
+      return links.find((link) => link.id === selectedLinkId) ?? selectVisibleLink(orderedLinks, selectedLinkId) ?? fallbackLink;
+    }
+
+    return selectVisibleLink(orderedLinks, selectedLinkId) ?? fallbackLink;
+  }, [links, normalizedSearchQuery, orderedLinks, selectedLinkId]);
   const normalizedArchiveSearchQuery = archiveSearchQuery.trim().toLowerCase();
   const filteredArchivedLinks = React.useMemo(() => {
     if (!normalizedArchiveSearchQuery) {
