@@ -20,7 +20,7 @@ const logoRows = [
     },
   },
   {
-    label: "Fallback dark",
+    label: "Fallback plum",
     props: {
       fallback: "React",
       color: "var(--favicon-5)",

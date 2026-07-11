@@ -1,6 +1,6 @@
 import type { IconSvgElement } from "@hugeicons/react";
 import Add01Icon from "@hugeicons/core-free-icons/Add01Icon";
-import Archive01Icon from "@hugeicons/core-free-icons/Archive01Icon";
+import Archive04Icon from "@hugeicons/core-free-icons/Archive04Icon";
 import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
 import Bookmark02Icon from "@hugeicons/core-free-icons/Bookmark02Icon";
 import Calendar03Icon from "@hugeicons/core-free-icons/Calendar03Icon";
@@ -17,6 +17,7 @@ import FilePinIcon from "@hugeicons/core-free-icons/FilePinIcon";
 import Folder01Icon from "@hugeicons/core-free-icons/Folder01Icon";
 import Globe02Icon from "@hugeicons/core-free-icons/Globe02Icon";
 import Link01Icon from "@hugeicons/core-free-icons/Link01Icon";
+import Refresh01Icon from "@hugeicons/core-free-icons/Refresh01Icon";
 import Search01Icon from "@hugeicons/core-free-icons/Search01Icon";
 import Share08Icon from "@hugeicons/core-free-icons/Share08Icon";
 import Sorting05Icon from "@hugeicons/core-free-icons/Sorting05Icon";
@@ -26,12 +27,15 @@ import LockPasswordIcon from "@hugeicons/core-free-icons/LockPasswordIcon";
 import Mail01Icon from "@hugeicons/core-free-icons/Mail01Icon";
 import UserIcon from "@hugeicons/core-free-icons/UserIcon";
 import Logout01Icon from "@hugeicons/core-free-icons/Logout01Icon";
+import MoreVerticalIcon from "@hugeicons/core-free-icons/MoreVerticalIcon";
+import Delete02Icon from "@hugeicons/core-free-icons/Delete02Icon";
 
 export type AppIcon = IconSvgElement;
 
 export const Icons = {
   add: Add01Icon,
-  archive: Archive01Icon,
+  archive: Archive04Icon,
+  restore: Refresh01Icon,
   bookmark: Bookmark02Icon,
   book: BookOpen01Icon,
   calendar: Calendar03Icon,
@@ -51,6 +55,8 @@ export const Icons = {
   lock: LockPasswordIcon,
   mail: Mail01Icon,
   logout: Logout01Icon,
+  more: MoreVerticalIcon,
+  delete: Delete02Icon,
   pin: FilePinIcon,
   search: Search01Icon,
   share: Share08Icon,

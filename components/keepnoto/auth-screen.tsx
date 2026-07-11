@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { BrandLogo, Button } from "@/components/keepnoto/product-components";
 import { createClient } from "@/lib/supabase/client";
 
@@ -59,7 +60,11 @@ export function AuthScreen({ error }: AuthScreenProps) {
           </Button>
           {error || requestError ? <p aria-live="polite" className="text-center type-12 text-[var(--danger)]">{requestError ?? "Sign-in was not completed. Please try again."}</p> : null}
         </div>
+
       </section>
+      <p className="absolute bottom-[var(--space-24)] px-[var(--space-24)] text-center type-12 text-[var(--content-muted)]">
+        By continuing, you agree to the <Link className="underline decoration-[var(--border-subtle)] underline-offset-4 transition-colors hover:text-[var(--content-primary)]" href="/terms">Terms of Service</Link> and <Link className="underline decoration-[var(--border-subtle)] underline-offset-4 transition-colors hover:text-[var(--content-primary)]" href="/privacy">Privacy Policy</Link>.
+      </p>
     </main>
   );
 }

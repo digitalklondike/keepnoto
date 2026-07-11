@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -254,6 +252,7 @@
   --state-danger-pressed: color-mix(in srgb, var(--danger) 10%, transparent);
   --icon-muted: color-mix(in srgb, var(--content-primary) 66%, transparent);
   --danger-muted: color-mix(in srgb, var(--danger) 76%, transparent);
+  --success-muted: color-mix(in srgb, var(--success) 76%, transparent);
   --danger-dropdown: color-mix(in srgb, var(--danger) 78%, transparent);
   --add-tag-border: color-mix(in srgb, var(--neutral-600) 28%, transparent);
   --add-tag-border-hover: color-mix(in srgb, var(--neutral-600) 38%, transparent);
@@ -320,56 +319,6 @@
   --sidebar-accent-foreground: var(--palette-primary-dark);
   --sidebar-border: var(--palette-border);
   --sidebar-ring: var(--palette-primary);
-}
-.dark {
-  color-scheme: dark;
-  --background: var(--primary-900);
-  --foreground: var(--neutral-50);
-  --ink: var(--neutral-50);
-  --ink-soft: var(--neutral-300);
-  --card: var(--primary-800);
-  --card-foreground: var(--neutral-50);
-  --popover: var(--primary-800);
-  --popover-foreground: var(--neutral-50);
-  --primary: var(--primary-300);
-  --primary-foreground: var(--primary-900);
-  --secondary: var(--primary-800);
-  --secondary-foreground: var(--neutral-100);
-  --muted: var(--primary-800);
-  --muted-foreground: var(--neutral-400);
-  --accent: var(--purple-700);
-  --accent-foreground: var(--neutral-50);
-  --destructive: #ffb4ab;
-  --border: rgb(255 255 255 / 14%);
-  --input: rgb(255 255 255 / 18%);
-  --ring: var(--primary-300);
-  --surface: var(--primary-900);
-  --surface-raised: var(--primary-800);
-  --surface-warm: var(--primary-700);
-  --note: var(--orange-700);
-  --note-foreground: var(--orange-50);
-  --saved-reason-ink: var(--neutral-100);
-  --success: var(--green-500);
-  --success-foreground: var(--primary-900);
-  --warning: var(--orange-500);
-  --warning-foreground: var(--primary-900);
-  --chart-1: var(--primary-300);
-  --chart-2: var(--orange-500);
-  --chart-3: var(--green-500);
-  --chart-4: var(--purple-500);
-  --chart-5: var(--neutral-300);
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 24%);
-  --shadow-card: 0 10px 30px oklch(0 0 0 / 28%);
-  --shadow-panel: 0 18px 48px oklch(0 0 0 / 34%);
-  --shadow-inner-white: inset 0 0 12px 0 rgb(255 255 255 / 100%);
-  --sidebar: var(--primary-900);
-  --sidebar-foreground: var(--neutral-50);
-  --sidebar-primary: var(--primary-300);
-  --sidebar-primary-foreground: var(--primary-900);
-  --sidebar-accent: var(--primary-800);
-  --sidebar-accent-foreground: var(--neutral-100);
-  --sidebar-border: rgb(255 255 255 / 14%);
-  --sidebar-ring: var(--primary-300);
 }
 @layer base {
   * {

@@ -23,7 +23,6 @@ For UI changes, verify:
 - Typography hierarchy is clear.
 - Hover, focus, active, and disabled states are considered.
 - Empty, loading, and error states are considered when relevant.
-- Light and dark theme compatibility is checked once themes exist.
 - UI follows `DESIGN_DIRECTION.md` and `.agents/skills/keepnoto-visual-design/SKILL.md`.
 
 ## Storybook Checks

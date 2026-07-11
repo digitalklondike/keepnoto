@@ -1,11 +1,12 @@
-import { lookup } from "node:dns/promises";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { Agent, fetch as undiciFetch, interceptors, type RequestInit as UndiciRequestInit } from "undici";
 import { isIP } from "node:net";
 
 const MAX_SAFE_REDIRECTS = 5;
 
 const blockedHostnames = new Set(["localhost", "localhost.localdomain"]);
 
-type SafeFetchOptions = Omit<RequestInit, "redirect" | "signal"> & {
+type SafeFetchOptions = Omit<UndiciRequestInit, "dispatcher" | "redirect" | "signal"> & {
   signal?: AbortSignal;
 };
 
@@ -112,7 +113,7 @@ export async function assertPublicHttpUrl(url: URL) {
     return;
   }
 
-  const addresses = await lookup(hostname, { all: true, verbatim: true });
+  const addresses = await dnsLookup(hostname, { all: true, verbatim: true });
 
   if (addresses.length === 0) {
     throw new Error("Unable to resolve URL host.");
@@ -121,14 +122,32 @@ export async function assertPublicHttpUrl(url: URL) {
   addresses.forEach(({ address }) => assertPublicAddress(address));
 }
 
+const safeDispatcher = new Agent().compose(
+  interceptors.dns({
+    maxTTL: 60_000,
+    lookup(origin, _options, callback) {
+      void dnsLookup(origin.hostname, { all: true, verbatim: true })
+        .then((addresses) => {
+          addresses.forEach(({ address }) => assertPublicAddress(address));
+          callback(
+            null,
+            addresses.map(({ address, family }) => ({ address, family: family as 4 | 6, ttl: 60_000 }))
+          );
+        })
+        .catch((error: NodeJS.ErrnoException) => callback(error, []));
+    },
+  })
+);
+
 export async function safeFetch(url: URL | string, options: SafeFetchOptions = {}) {
   let currentUrl = typeof url === "string" ? normalizePublicHttpUrl(url) : url;
 
   for (let redirectCount = 0; redirectCount <= MAX_SAFE_REDIRECTS; redirectCount += 1) {
     await assertPublicHttpUrl(currentUrl);
 
-    const response = await fetch(currentUrl.href, {
+    const response = await undiciFetch(currentUrl.href, {
       ...options,
+      dispatcher: safeDispatcher,
       redirect: "manual",
       signal: options.signal,
     });

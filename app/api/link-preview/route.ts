@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server";
+import { getAuthenticatedApiContext } from "@/lib/api-auth";
+import { consumeApiRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
@@ -389,18 +391,45 @@ async function isUsableImage(url: string) {
   }
 }
 
-async function findFirstUsableImage(candidates: string[]) {
-  const uniqueCandidates = uniqueUrls(candidates);
-  const checks = await Promise.all(uniqueCandidates.map(async (candidate) => isUsableImage(candidate)));
+const MAX_ASSET_CANDIDATES = 12;
+const ASSET_CHECK_CONCURRENCY = 4;
 
-  return uniqueCandidates.find((_, index) => checks[index]);
+async function findFirstUsableImage(candidates: string[]) {
+  const uniqueCandidates = uniqueUrls(candidates).slice(0, MAX_ASSET_CANDIDATES);
+
+  for (let index = 0; index < uniqueCandidates.length; index += ASSET_CHECK_CONCURRENCY) {
+    const batch = uniqueCandidates.slice(index, index + ASSET_CHECK_CONCURRENCY);
+    const checks = await Promise.all(batch.map((candidate) => isUsableImage(candidate)));
+    const firstUsableIndex = checks.findIndex(Boolean);
+
+    if (firstUsableIndex >= 0) {
+      return batch[firstUsableIndex];
+    }
+  }
+
+  return undefined;
 }
 
 async function findBestDeclaredImage(candidates: string[]) {
-  return (await findFirstUsableImage(candidates)) ?? uniqueUrls(candidates)[0];
+  const uniqueCandidates = uniqueUrls(candidates).slice(0, MAX_ASSET_CANDIDATES);
+  return (await findFirstUsableImage(uniqueCandidates)) ?? uniqueCandidates[0];
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await getAuthenticatedApiContext();
+
+  if (!auth) {
+    return Response.json({ ok: false, error: "Authentication required." } satisfies LinkPreviewResponse, { status: 401 });
+  }
+
+  const rateLimit = await consumeApiRateLimit(auth.supabase, auth.user.id, "link-preview", { limit: 20, windowMs: 60_000 });
+
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { ok: false, error: "Too many preview requests. Please try again shortly." } satisfies LinkPreviewResponse,
+      { status: 429, headers: getRateLimitHeaders(rateLimit) }
+    );
+  }
   const rawUrl = request.nextUrl.searchParams.get("url");
 
   if (!rawUrl) {
