@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
-import { getAuthenticatedApiUser } from "@/lib/api-auth";
-import { consumeRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
+import { getAuthenticatedApiContext } from "@/lib/api-auth";
+import { consumeApiRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
@@ -47,13 +47,13 @@ function getImageContentTypeFromPath(value: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const user = await getAuthenticatedApiUser();
+  const auth = await getAuthenticatedApiContext();
 
-  if (!user) {
+  if (!auth) {
     return new Response("Authentication required.", { status: 401 });
   }
 
-  const rateLimit = consumeRateLimit(`media-proxy:${user.id}`, { limit: 120, windowMs: 60_000 });
+  const rateLimit = await consumeApiRateLimit(auth.supabase, auth.user.id, "media-proxy", { limit: 120, windowMs: 60_000 });
 
   if (!rateLimit.allowed) {
     return new Response("Too many media requests. Please try again shortly.", {
@@ -110,6 +110,8 @@ export async function GET(request: NextRequest) {
         headers: {
           "access-control-allow-origin": "*",
           "cache-control": "public, max-age=86400, s-maxage=604800",
+          "content-security-policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+          "cross-origin-resource-policy": "same-origin",
           "content-type": contentType.startsWith("image/") ? contentType : fallbackContentType ?? "application/octet-stream",
           "x-content-type-options": "nosniff",
         },

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/keepnoto/legal-page";
+import { supportEmail } from "@/lib/support";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Keepnoto",
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
 
       <section className="flex flex-col gap-[var(--space-8)]">
         <h2 className="type-16-semibold">Your data</h2>
-        <p>We do not sell your personal data. You can request deletion of your account and saved data by emailing <a className="underline decoration-[var(--border-subtle)] underline-offset-4 hover:text-[var(--content-primary)]" href="mailto:support@keepnoto.app">support@keepnoto.app</a> from the email address connected to your account.</p>
+        <p>We do not sell your personal data. You can request deletion of your account and saved data by emailing <a className="underline decoration-[var(--border-subtle)] underline-offset-4 hover:text-[var(--content-primary)]" href={`mailto:${supportEmail}`}>{supportEmail}</a> from the email address connected to your account.</p>
       </section>
 
       <section className="flex flex-col gap-[var(--space-8)]">

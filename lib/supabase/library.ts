@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
+import { formatRelativeDate } from "@/lib/link-utils";
 
 const linkLogoColors = [
   "var(--favicon-1)",
@@ -46,6 +47,7 @@ export type LibraryLink = {
   collection: string | null;
   tags: string[];
   addedDate: string;
+  createdAt: string;
   logoColor: string;
   favorite: boolean;
   archivedAt?: string;
@@ -63,33 +65,10 @@ export type LibrarySnapshot = {
   tags: string[];
 };
 
-export type LibraryLinkInput = Omit<LibraryLink, "addedDate" | "archivedAt" | "favorite" | "id" | "logoColor"> & {
+export type LibraryLinkInput = Omit<LibraryLink, "addedDate" | "archivedAt" | "createdAt" | "favorite" | "id" | "logoColor"> & {
   id?: string;
   favorite?: boolean;
 };
-
-function relativeDate(value: string) {
-  const timestamp = new Date(value).getTime();
-  const elapsedMilliseconds = Date.now() - timestamp;
-  const minutes = Math.max(0, Math.floor(elapsedMilliseconds / 60_000));
-
-  if (minutes < 1) {
-    return "Just now";
-  }
-
-  if (minutes < 60) {
-    return `${minutes}m ago`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-
-  if (hours < 24) {
-    return `${hours}h ago`;
-  }
-
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "1 day ago" : `${days} days ago`;
-}
 
 function mapLink(row: LinkRow, index: number): LibraryLink {
   return {
@@ -108,7 +87,8 @@ function mapLink(row: LinkRow, index: number): LibraryLink {
     type: row.resource_type,
     collection: row.collection_name,
     tags: row.link_tags?.flatMap((item) => (item.tags?.name ? [item.tags.name] : [])) ?? [],
-    addedDate: relativeDate(row.created_at),
+    addedDate: formatRelativeDate(row.created_at),
+    createdAt: row.created_at,
     logoColor: linkLogoColors[index % linkLogoColors.length],
     favorite: row.is_favorite,
     archivedAt: row.archived_at ?? undefined,
@@ -191,6 +171,9 @@ async function syncLinkTags(linkId: string, userId: string, tags: string[]) {
   ensureSuccess(insertError);
 }
 
+function isMissingRpc(error: { code?: string; message: string } | null) {
+  return error?.code === "PGRST202" || Boolean(error?.message.toLowerCase().includes("save_link_with_tags"));
+}
 export async function loadLibrary(userId: string): Promise<LibrarySnapshot> {
   const supabase = createClient();
   const [linksResult, tagsResult, profileResult] = await Promise.all([
@@ -283,6 +266,27 @@ export async function saveLibraryLink(userId: string, link: LibraryLinkInput): P
     is_favorite: link.favorite ?? false,
   };
 
+  const rpcResult = await supabase.rpc("save_link_with_tags", {
+    p_link_id: link.id ?? null,
+    p_link: values,
+    p_tags: link.tags,
+  });
+
+  if (!rpcResult.error) {
+    const savedLinkId = typeof rpcResult.data === "string" ? rpcResult.data : link.id;
+
+    if (!savedLinkId) {
+      throw new Error("The saved link could not be loaded.");
+    }
+
+    return getLink(savedLinkId);
+  }
+
+  if (!isMissingRpc(rpcResult.error)) {
+    ensureSuccess(rpcResult.error);
+  }
+
+  // Keep older deployments usable until the atomic RPC migration is applied.
   const result = link.id
     ? await supabase.from("links").update(values).eq("id", link.id).select("id").single()
     : await supabase.from("links").insert(values).select("id").single();
@@ -359,4 +363,30 @@ export async function deleteLibraryTag(userId: string, name: string) {
 export async function saveProfileName(userId: string, name: string) {
   const { error } = await createClient().from("profiles").upsert({ id: userId, display_name: name }, { onConflict: "id" });
   ensureSuccess(error);
+}
+export async function saveProfileAvatar(userId: string, file: File) {
+  const supabase = createClient();
+  const objectPath = `${userId}/avatar`;
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(objectPath, file, {
+    cacheControl: "3600",
+    contentType: file.type,
+    upsert: true,
+  });
+  ensureSuccess(uploadError);
+
+  const { data } = supabase.storage.from("avatars").getPublicUrl(objectPath);
+  const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .upsert({ id: userId, avatar_url: avatarUrl }, { onConflict: "id" });
+  ensureSuccess(profileError);
+
+  return avatarUrl;
+}
+export async function removeProfileAvatar(userId: string) {
+  const supabase = createClient();
+  const { error: removeError } = await supabase.storage.from("avatars").remove([`${userId}/avatar`]);
+  ensureSuccess(removeError);
+  const { error: profileError } = await supabase.from("profiles").upsert({ id: userId, avatar_url: null }, { onConflict: "id" });
+  ensureSuccess(profileError);
 }

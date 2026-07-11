@@ -462,7 +462,7 @@ type MediaAssetProbeProps = {
   onError: () => void;
 };
 
-function getProxiedMediaSrc(src: string) {
+export function getProxiedMediaSrc(src: string) {
   try {
     const url = new URL(src);
 
@@ -627,6 +627,7 @@ export function LinkLogo({
     lg: "size-[var(--size-48)] rounded-[var(--radius-12)] type-16-semibold",
   }[size];
   const imageSrc = src && failedSrc !== src ? src : undefined;
+  const proxiedImageSrc = React.useMemo(() => (imageSrc ? getProxiedMediaSrc(imageSrc) : undefined), [imageSrc]);
   const showImage = Boolean(imageSrc);
 
   return (
@@ -639,7 +640,7 @@ export function LinkLogo({
       style={{ backgroundColor: showImage ? undefined : color, color: "var(--white)" }}
     >
       {imageSrc ? (
-        <img src={imageSrc} alt={alt} className="size-full object-contain" onError={() => setFailedSrc(imageSrc)} />
+        <img src={proxiedImageSrc} alt={alt} className="size-full object-contain" onError={() => setFailedSrc(imageSrc)} />
       ) : (
         fallback.slice(0, 1).toUpperCase()
       )}

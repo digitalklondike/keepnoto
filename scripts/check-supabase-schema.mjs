@@ -1,8 +1,7 @@
 import nextEnv from "@next/env";
-
-const { loadEnvConfig } = nextEnv;
 import { createClient } from "@supabase/supabase-js";
 
+const { loadEnvConfig } = nextEnv;
 loadEnvConfig(process.cwd());
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -31,6 +30,25 @@ const failure = results.find((result) => result.error)?.error;
 
 if (failure) {
   throw new Error(`Supabase schema is not ready: ${failure.message}`);
+}
+
+const rpcProbes = await Promise.all([
+  supabase.rpc("save_link_with_tags", { p_link_id: null, p_link: {}, p_tags: [] }),
+  supabase.rpc("consume_api_rate_limit", { p_scope: "schema-check", p_limit: 1, p_window_seconds: 60 }),
+]);
+
+const missingRpc = rpcProbes.find(
+  ({ error }) => error?.code === "PGRST202" || error?.message.toLowerCase().includes("could not find the function")
+)?.error;
+
+if (missingRpc) {
+  throw new Error("Supabase hardening migration is not applied. Run 20260711120000_harden_keepnoto_mvp.sql.");
+}
+
+const avatarProbe = await supabase.storage.from("avatars").list("", { limit: 1 });
+
+if (avatarProbe.error?.message.toLowerCase().includes("bucket not found")) {
+  throw new Error("Supabase avatars bucket is missing. Run 20260711120000_harden_keepnoto_mvp.sql.");
 }
 
 console.log("Supabase schema check passed.");
