@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "storybook": "node scripts/clean-storybook-cache.mjs && storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "check:schema": "node scripts/check-supabase-schema.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

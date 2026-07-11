@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server";
+import { getAuthenticatedApiUser } from "@/lib/api-auth";
+import { consumeRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
@@ -401,6 +403,20 @@ async function findBestDeclaredImage(candidates: string[]) {
 }
 
 export async function GET(request: NextRequest) {
+  const user = await getAuthenticatedApiUser();
+
+  if (!user) {
+    return Response.json({ ok: false, error: "Authentication required." } satisfies LinkPreviewResponse, { status: 401 });
+  }
+
+  const rateLimit = consumeRateLimit(`link-preview:${user.id}`, { limit: 20, windowMs: 60_000 });
+
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { ok: false, error: "Too many preview requests. Please try again shortly." } satisfies LinkPreviewResponse,
+      { status: 429, headers: getRateLimitHeaders(rateLimit) }
+    );
+  }
   const rawUrl = request.nextUrl.searchParams.get("url");
 
   if (!rawUrl) {

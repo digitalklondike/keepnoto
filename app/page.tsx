@@ -20,7 +20,7 @@ import { LinkCard } from "@/components/keepnoto/link-card";
 import { ArchiveDetailPanel, ArchivePanel } from "@/components/keepnoto/archive-manager";
 import { TagDetailPanel, TagManagerPanel, type TagSummary } from "@/components/keepnoto/tag-manager";
 import { createClient as createSupabaseClient } from "@/lib/supabase/client";
-import { archiveLibraryLink, deleteLibraryLinkPermanently, deleteLibraryTag, loadLibrary, renameLibraryTag, restoreLibraryLink, saveLibraryLink, saveProfileName, setLibraryLinkFavorite } from "@/lib/supabase/library";
+import { archiveLibraryLink, deleteLibraryLinkPermanently, deleteLibraryTag, loadLibrary, renameLibraryTag, restoreLibraryLink, saveLibraryLink, saveProfileName, setLibraryLinkFavorite, updateLibraryLinkPreview } from "@/lib/supabase/library";
 import { cn } from "@/lib/utils";
 import {
   BrandLogo,
@@ -247,7 +247,6 @@ async function fetchLinkPreviewMetadata(url: string) {
 const navItems = [
   { label: "Links", icon: Icons.link, view: "library" as const },
   { label: "Tags", icon: Icons.tag, view: "tags" as const },
-  { label: "Collections", icon: Icons.folder, disabled: true },
   { label: "Archive", icon: Icons.archive, view: "archive" as const },
 ];
 
@@ -358,6 +357,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
   const [archiveSearchQuery, setArchiveSearchQuery] = React.useState("");
   const [selectedArchivedLinkId, setSelectedArchivedLinkId] = React.useState("");
   const [archiveMutationPending, setArchiveMutationPending] = React.useState(false);
+  const [archiveActionError, setArchiveActionError] = React.useState<string | null>(null);
   const [permanentDeleteTargetId, setPermanentDeleteTargetId] = React.useState<string | null>(null);
   const [availableTagValues, setAvailableTagValues] = React.useState<string[]>([]);
   const [workspaceView, setWorkspaceView] = React.useState<WorkspaceView>("library");
@@ -922,6 +922,43 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
     );
   };
 
+  const refreshSavedLinkPreview = async (linkId: string, expectedHref: string, customTitle: string) => {
+    const metadata = await fetchLinkPreviewMetadata(expectedHref);
+
+    if (!metadata) {
+      return;
+    }
+
+    const metadataDescription = metadata.description?.trim();
+    const metadataTitle = metadata.title?.trim();
+    const metadataSiteName = metadata.siteName?.trim();
+    const metadataIcon = metadata.icon?.trim();
+    const metadataLogo = metadata.logo?.trim();
+    const metadataImage = metadata.image?.trim();
+    const resolvedHref = metadata.url ?? expectedHref;
+    const resolvedParts = getLinkParts(resolvedHref);
+
+    try {
+      const refreshedLink = await updateLibraryLinkPreview(linkId, expectedHref, {
+        href: resolvedHref,
+        domain: metadata.domain ?? resolvedParts.domain,
+        source: metadata.domain ?? resolvedParts.source,
+        description: metadataDescription,
+        previewTitle: metadataTitle ?? metadataSiteName ?? customTitle,
+        previewDescription: metadataDescription,
+        faviconSrc: metadataIcon,
+        previewLogoSrc: metadataLogo ?? metadataIcon,
+        metadataImageSrc: metadataImage,
+        type: metadata.type === "article" ? "Article" : "Link",
+      });
+
+      if (refreshedLink) {
+        setLinks((currentLinks) => currentLinks.map((link) => (link.id === refreshedLink.id ? refreshedLink : link)));
+      }
+    } catch {
+      // Preview metadata is optional; the saved link remains usable without it.
+    }
+  };
   const handleSaveLink = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -938,14 +975,6 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
     const linkParts = getLinkParts(rawUrl);
     const normalizedTags = Array.from(new Set(draftTags.map(normalizeTagValue).filter(Boolean)));
     const savedReason = draftSavedReason.trim().slice(0, SAVED_REASON_INPUT_MAX_LENGTH);
-    const metadata = await fetchLinkPreviewMetadata(linkParts.href);
-    const metadataDescription = metadata?.description?.trim();
-    const metadataTitle = metadata?.title?.trim();
-    const metadataSiteName = metadata?.siteName?.trim();
-    const metadataIcon = metadata?.icon?.trim();
-    const metadataLogo = metadata?.logo?.trim();
-    const metadataImage = metadata?.image?.trim();
-    const resolvedHref = metadata?.url ?? linkParts.href;
 
     try {
       if (saveDialogMode === "edit") {
@@ -956,21 +985,20 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
           return;
         }
 
-        const hrefChanged = editedLink.href !== resolvedHref;
+        const hrefChanged = editedLink.href !== linkParts.href;
         const savedLink = await saveLibraryLink(session.id, {
           ...editedLink,
           title,
           domain: linkParts.domain,
-          source: metadata?.domain ?? linkParts.source,
-          description: metadataDescription ?? (hrefChanged ? "Saved manually. Preview metadata was not available from this URL." : editedLink.description),
-          previewTitle: metadataTitle ?? metadataSiteName ?? title,
-          previewDescription:
-            metadataDescription ?? (hrefChanged ? "No preview description was provided by the saved URL." : editedLink.previewDescription),
-          href: resolvedHref,
-          faviconSrc: metadataIcon ?? (hrefChanged ? undefined : editedLink.faviconSrc),
-          previewLogoSrc: metadataLogo ?? metadataIcon ?? (hrefChanged ? undefined : editedLink.previewLogoSrc),
-          metadataImageSrc: metadataImage ?? (hrefChanged ? undefined : editedLink.metadataImageSrc),
-          type: metadata?.type === "article" ? "Article" : hrefChanged ? "Link" : editedLink.type,
+          source: linkParts.source,
+          description: hrefChanged ? "Saved manually. Preview metadata was not available from this URL." : editedLink.description,
+          previewTitle: hrefChanged ? title : editedLink.previewTitle,
+          previewDescription: hrefChanged ? "No preview description was provided by the saved URL." : editedLink.previewDescription,
+          href: linkParts.href,
+          faviconSrc: hrefChanged ? undefined : editedLink.faviconSrc,
+          previewLogoSrc: hrefChanged ? undefined : editedLink.previewLogoSrc,
+          metadataImageSrc: hrefChanged ? undefined : editedLink.metadataImageSrc,
+          type: hrefChanged ? "Link" : editedLink.type,
           tags: normalizedTags,
           savedReason: savedReason || undefined,
         });
@@ -978,20 +1006,21 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
         setAvailableTagValues((currentValues) => Array.from(new Set([...currentValues, ...savedLink.tags])));
         setLinks((currentLinks) => currentLinks.map((link) => (link.id === savedLink.id ? savedLink : link)));
         setSelectedLinkId(savedLink.id);
+
+        if (hrefChanged) {
+          void refreshSavedLinkPreview(savedLink.id, savedLink.href, title);
+        }
       } else {
         const savedLink = await saveLibraryLink(session.id, {
           title,
           domain: linkParts.domain,
-          source: metadata?.domain ?? linkParts.source,
-          description: metadataDescription ?? "Saved manually. Preview metadata was not available from this URL.",
+          source: linkParts.source,
+          description: "Saved manually. Preview metadata was not available from this URL.",
           savedReason: savedReason || undefined,
-          previewTitle: metadataTitle ?? metadataSiteName ?? title,
-          previewDescription: metadataDescription ?? "No preview description was provided by the saved URL.",
-          href: resolvedHref,
-          faviconSrc: metadataIcon,
-          previewLogoSrc: metadataLogo ?? metadataIcon,
-          metadataImageSrc: metadataImage,
-          type: metadata?.type === "article" ? "Article" : "Link",
+          previewTitle: title,
+          previewDescription: "No preview description was provided by the saved URL.",
+          href: linkParts.href,
+          type: "Link",
           collection: null,
           tags: normalizedTags,
         });
@@ -1001,6 +1030,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
         setActiveTab("All links");
         setSearchQuery("");
         setSelectedLinkId(savedLink.id);
+        void refreshSavedLinkPreview(savedLink.id, savedLink.href, title);
       }
 
       setSaveDialogOpen(false);
@@ -1202,6 +1232,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
     }
 
     setArchiveMutationPending(true);
+    setArchiveActionError(null);
 
     try {
       await restoreLibraryLink(linkId);
@@ -1213,6 +1244,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
       setSelectedArchivedLinkId(nextArchivedLinks[0]?.id ?? "");
       setSelectedLinkId(restoredLink.id);
       setActiveTab("All links");
+    } catch {
+      setArchiveActionError("Could not restore this link. Please try again.");
     } finally {
       setArchiveMutationPending(false);
     }
@@ -1226,6 +1259,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
     }
 
     setArchiveMutationPending(true);
+    setArchiveActionError(null);
 
     try {
       await deleteLibraryLinkPermanently(linkId);
@@ -1234,6 +1268,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
       setArchivedLinks(nextArchivedLinks);
       setSelectedArchivedLinkId(nextArchivedLinks[0]?.id ?? "");
       setPermanentDeleteTargetId(null);
+    } catch {
+      setArchiveActionError("Could not permanently delete this link. Please try again.");
     } finally {
       setArchiveMutationPending(false);
     }
@@ -1342,6 +1378,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
               <BrandLogo size={32} />
             </div>
             <TextField
+              aria-label={workspaceView === "tags" ? "Search tags" : workspaceView === "archive" ? "Search archive" : "Search saved links or paste a link to save"}
               ref={searchInputRef}
               endAdornment={
                 topSearchQuery ? (
@@ -1405,20 +1442,22 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
 
             {saveError ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{saveError}</p> : null}
             <form className="flex flex-col gap-[var(--space-16)]" onSubmit={handleSaveLink}>
-              <label className="flex flex-col gap-[var(--space-8)]">
+              <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Title</span>
                 <TextField
+                  aria-label="Title"
                   className="w-full"
                   icon={Icons.edit}
                   onChange={(event) => setDraftTitle(event.target.value)}
                   placeholder="Name this saved link"
                   value={draftTitle}
                 />
-              </label>
+              </div>
 
-              <label className="flex flex-col gap-[var(--space-8)]">
+              <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Link</span>
                 <TextField
+                  aria-label="Link"
                   className="w-full"
                   icon={Icons.link}
                   inputMode="url"
@@ -1426,7 +1465,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                   placeholder="https://example.com/resource"
                   value={draftUrl}
                 />
-              </label>
+              </div>
 
               <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="flex items-center justify-between gap-[var(--space-16)]">
@@ -1493,7 +1532,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
           </DialogContent>
         </Dialog>
 
-        <Dialog open={Boolean(permanentDeleteTargetId)} onOpenChange={(open) => !open && setPermanentDeleteTargetId(null)}>
+        <Dialog open={Boolean(permanentDeleteTargetId)} onOpenChange={(open) => { if (!open) { setPermanentDeleteTargetId(null); setArchiveActionError(null); } }}>
           <DialogContent className="flex w-[var(--confirm-dialog-width)] !max-w-[calc(100dvw-var(--space-48))] flex-col gap-[var(--space-24)] rounded-[var(--radius-20)] border-0 !bg-[var(--dialog-surface)] p-[var(--space-32)] text-[var(--content-primary)] shadow-[var(--shadow-panel)] ring-0 backdrop-blur-[var(--blur-panel)]">
             <div className="flex flex-col gap-[var(--space-8)]">
               <DialogTitle className="type-title text-[var(--content-primary)]">Delete this link permanently?</DialogTitle>
@@ -1501,8 +1540,9 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                 This cannot be undone. The saved link, its note, and its tag connections will be removed now.
               </DialogDescription>
             </div>
+            {archiveActionError ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{archiveActionError}</p> : null}
             <div className="flex h-[var(--size-48)] items-center gap-[var(--space-8)]">
-              <Button className="h-[var(--size-48)] flex-1" disabled={archiveMutationPending} onClick={() => setPermanentDeleteTargetId(null)} tone="secondary" type="button">
+              <Button className="h-[var(--size-48)] flex-1" disabled={archiveMutationPending} onClick={() => { setPermanentDeleteTargetId(null); setArchiveActionError(null); }} tone="secondary" type="button">
                 Keep in archive
               </Button>
               <Button className="h-[var(--size-48)] flex-1" disabled={archiveMutationPending} onClick={() => void handleDeleteArchivedLinkPermanently()} tone="secondaryDanger" type="button">
@@ -1621,16 +1661,17 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
 
               {avatarError ? <p className="type-12 text-[var(--danger)]">{avatarError}</p> : null}
 
-              <label className="flex flex-col gap-[var(--space-8)]">
+              <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Name</span>
                 <TextField
+                  aria-label="Name"
                   className="w-full"
                   icon={Icons.user}
                   onChange={(event) => setProfileNameDraft(event.target.value)}
                   placeholder="Your name"
                   value={profileNameDraft}
                 />
-              </label>
+              </div>
 
               <div className="flex flex-col gap-[var(--space-8)]">
                 <span className="type-label text-[var(--content-muted)]">Email</span>
@@ -1664,9 +1705,8 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
                     icon={item.icon}
                     label={item.label}
                     active={item.view === workspaceView}
-                    disabled={item.disabled}
                     iconSize={24}
-                    onClick={item.view ? () => openWorkspaceView(item.view) : undefined}
+                    onClick={() => openWorkspaceView(item.view)}
                     tooltipSide="auto"
                   />
                 ))}
@@ -1874,7 +1914,7 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
               <ArchivePanel
                 links={filteredArchivedLinks.map((link) => ({ ...link, archivedAt: link.archivedAt ?? new Date().toISOString() }))}
                 loading={!libraryReady}
-                onSelectLink={setSelectedArchivedLinkId}
+                onSelectLink={(linkId) => { setArchiveActionError(null); setSelectedArchivedLinkId(linkId); }}
                 selectedLinkId={selectedArchivedLink?.id}
                 totalCount={archivedLinks.length}
               />
@@ -2082,9 +2122,10 @@ function KeepnotoWorkspace({ session, onSignOut }: { session: AuthenticatedSessi
           ) : (
             <ArchiveDetailPanel
               actionPending={archiveMutationPending}
+              error={archiveActionError}
               link={selectedArchivedLink?.archivedAt ? { ...selectedArchivedLink, archivedAt: selectedArchivedLink.archivedAt } : undefined}
               loading={!libraryReady}
-              onDeletePermanently={setPermanentDeleteTargetId}
+              onDeletePermanently={(linkId) => { setArchiveActionError(null); setPermanentDeleteTargetId(linkId); }}
               onRestore={(linkId) => void handleRestoreArchivedLink(linkId)}
             />
           )}

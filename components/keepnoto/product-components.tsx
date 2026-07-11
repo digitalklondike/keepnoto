@@ -249,8 +249,10 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(func
   inputClassName,
   ...props
 }, ref) {
+  const accessibleLabel = props["aria-label"] ?? (typeof props.placeholder === "string" ? props.placeholder : undefined);
+
   return (
-    <label
+    <div
       data-state={visualState}
       className={cn(
         "group flex h-[var(--size-48)] w-[var(--search-width)] items-center rounded-[var(--radius-round)] px-[var(--space-16)] text-[var(--content-primary)] backdrop-blur-[var(--blur-soft)] transition-[background-color,opacity,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)]",
@@ -263,20 +265,19 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(func
       <span className="flex size-[var(--size-24)] items-center justify-center text-[var(--content-muted)] transition-colors group-hover:text-[var(--content-primary)] group-focus-within:text-[var(--content-primary)] group-data-[state=hover]:text-[var(--content-primary)] group-data-[state=pressed]:text-[var(--content-primary)] group-data-[state=focused]:text-[var(--content-primary)]">
         <Icon icon={icon} size={20} />
       </span>
-      <span className="sr-only">Field</span>
       <input
         {...props}
         ref={ref}
+        aria-label={accessibleLabel}
         className={cn(
           "ml-[var(--space-8)] h-[var(--size-24)] min-w-0 flex-1 bg-transparent type-16 text-[var(--content-primary)] outline-none placeholder:text-[var(--content-muted)] disabled:cursor-not-allowed disabled:opacity-50",
           inputClassName
         )}
       />
       {endAdornment ? <span className="ml-[var(--space-8)] flex shrink-0 items-center">{endAdornment}</span> : null}
-    </label>
+    </div>
   );
 });
-
 export type TagProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
   add?: boolean;
   visualState?: Exclude<VisualState, "selected">;
@@ -793,9 +794,3 @@ export function SavedReason({ reason, label = "Why I saved this", maxLength = SA
   );
 }
 export { BookmarkIcon, Icons };
-
-
-
-
-
-

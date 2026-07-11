@@ -110,11 +110,12 @@ type ArchiveDetailPanelProps = {
   link?: ArchivedLinkSummary;
   loading?: boolean;
   actionPending?: boolean;
+  error?: string | null;
   onRestore: (linkId: string) => void;
   onDeletePermanently: (linkId: string) => void;
 };
 
-export function ArchiveDetailPanel({ link, loading = false, actionPending = false, onRestore, onDeletePermanently }: ArchiveDetailPanelProps) {
+export function ArchiveDetailPanel({ link, loading = false, actionPending = false, error, onRestore, onDeletePermanently }: ArchiveDetailPanelProps) {
   return (
     <section aria-busy={loading || undefined} className="w-[var(--layout-detail-width)] min-w-[var(--layout-detail-min-width)] max-w-[var(--layout-detail-max-width)] self-start rounded-[var(--radius-32)] bg-[var(--panel-surface)] p-[var(--space-24)] backdrop-blur-[var(--blur-soft)]">
       {loading ? (
@@ -157,6 +158,7 @@ export function ArchiveDetailPanel({ link, loading = false, actionPending = fals
             </div>
           </div>
 
+          {error ? <p aria-live="polite" className="type-12 text-[var(--danger)]">{error}</p> : null}
           <div aria-hidden="true" className="h-px w-full bg-[var(--divider-subtle)]" />
           <div className="flex h-[var(--size-48)] gap-[var(--space-8)]">
             <Button className="h-[var(--size-48)] flex-1" disabled={actionPending} onClick={() => onDeletePermanently(link.id)} tone="secondaryDanger" type="button">Delete now</Button>

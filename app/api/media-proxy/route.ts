@@ -1,4 +1,6 @@
 import { type NextRequest } from "next/server";
+import { getAuthenticatedApiUser } from "@/lib/api-auth";
+import { consumeRateLimit, getRateLimitHeaders } from "@/lib/rate-limit";
 import { normalizePublicHttpUrl, safeFetch } from "@/lib/safe-fetch";
 
 export const dynamic = "force-dynamic";
@@ -45,6 +47,20 @@ function getImageContentTypeFromPath(value: string) {
 }
 
 export async function GET(request: NextRequest) {
+  const user = await getAuthenticatedApiUser();
+
+  if (!user) {
+    return new Response("Authentication required.", { status: 401 });
+  }
+
+  const rateLimit = consumeRateLimit(`media-proxy:${user.id}`, { limit: 120, windowMs: 60_000 });
+
+  if (!rateLimit.allowed) {
+    return new Response("Too many media requests. Please try again shortly.", {
+      status: 429,
+      headers: getRateLimitHeaders(rateLimit),
+    });
+  }
   const rawUrl = request.nextUrl.searchParams.get("url");
 
   if (!rawUrl) {

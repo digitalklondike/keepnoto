@@ -193,6 +193,7 @@ export function LinkCard({
   const hasFooter = tags.length > 0 || Boolean(savedAt);
   const hiddenTagCount = Math.max(tags.length - visibleTagCount, 0);
   const visibleTags = tags.slice(0, visibleTagCount);
+  const interactive = Boolean(props.onClick || props.onKeyDown);
   const cardClassName = cn(
     "link-card-shell group/link-card relative grid w-full grid-cols-[var(--link-card-logo-column)_minmax(0,1fr)] items-start gap-x-[var(--space-16)] rounded-[var(--radius-24)] p-[var(--space-20)] text-[var(--content-primary)] outline-none transition-[background-color,box-shadow,transform] duration-150 ease-out",
     "bg-transparent",
@@ -207,7 +208,8 @@ export function LinkCard({
   return (
     <article
       {...props}
-      tabIndex={props.tabIndex ?? 0}
+      role={interactive ? "button" : undefined}
+      tabIndex={interactive ? props.tabIndex ?? 0 : props.tabIndex}
       data-state={visualState}
       aria-current={visualState === "active" ? "true" : undefined}
       className={cardClassName}

@@ -14,14 +14,10 @@ Build UI in this order:
 
 Tokens and reusable components should exist before product pages so visual decisions are consistent instead of copied page by page.
 
-## Theme System
+## Token System
 
-Keepnoto should support light and dark themes.
-
-- Use CSS variables and tokens for theme values.
+- Use CSS variables and tokens for visual values.
 - Avoid hardcoded colors in components.
-- Plan theme switching from the start, even if the first implementation is minimal.
-- Components should work in both light and dark themes.
 - Prefer semantic tokens such as background, surface, text, muted text, border, accent, danger, and focus over raw color names.
 
 ## Component Layers
@@ -67,7 +63,6 @@ Storybook is the required visual workshop for the Keepnoto design system.
 - Document reusable UI components in Storybook.
 - Every important reusable component should eventually have a Storybook story.
 - Stories should cover variants, sizes, states, and edge cases.
-- Stories should show light and dark theme compatibility once the theme system exists.
 - Keep Storybook focused on reusable components and patterns.
 - Do not turn Storybook into a dumping ground for full product pages.
 
@@ -82,7 +77,7 @@ Storybook is the required visual workshop for the Keepnoto design system.
 
 ## Build Order
 
-1. Define tokens and theme structure.
+1. Define the token structure.
 2. Build base components.
 3. Add Storybook stories for base components.
 4. Build Keepnoto-specific composed components.

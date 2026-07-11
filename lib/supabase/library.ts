@@ -25,7 +25,7 @@ type LinkRow = {
   collection_name: string | null;
   is_favorite: boolean;
   created_at: string;
-  archived_at: string | null;
+  archived_at?: string | null;
   link_tags: Array<{ tags: { name: string } | null }> | null;
 };
 
@@ -121,16 +121,49 @@ function ensureSuccess(error: { message: string } | null) {
   }
 }
 
+const linkSelect = "id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, archived_at, link_tags(tags(name))";
+const legacyLinkSelect = "id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, link_tags(tags(name))";
+
+function isMissingArchiveColumn(error: { message: string } | null) {
+  return Boolean(error?.message.toLowerCase().includes("archived_at"));
+}
+
+async function loadLinkRows(supabase: ReturnType<typeof createClient>) {
+  const currentResult = await supabase
+    .from("links")
+    .select(linkSelect)
+    .order("is_favorite", { ascending: false })
+    .order("created_at", { ascending: false });
+
+  if (!isMissingArchiveColumn(currentResult.error)) {
+    return currentResult;
+  }
+
+  return supabase
+    .from("links")
+    .select(legacyLinkSelect)
+    .order("is_favorite", { ascending: false })
+    .order("created_at", { ascending: false });
+}
+
 async function getLink(linkId: string): Promise<LibraryLink> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let result = await supabase
     .from("links")
-    .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, archived_at, link_tags(tags(name))")
+    .select(linkSelect)
     .eq("id", linkId)
     .single();
 
-  ensureSuccess(error);
-  return mapLink(data as unknown as LinkRow, 0);
+  if (isMissingArchiveColumn(result.error)) {
+    result = await supabase
+      .from("links")
+      .select(legacyLinkSelect)
+      .eq("id", linkId)
+      .single();
+  }
+
+  ensureSuccess(result.error);
+  return mapLink(result.data as unknown as LinkRow, 0);
 }
 
 async function syncLinkTags(linkId: string, userId: string, tags: string[]) {
@@ -161,11 +194,7 @@ async function syncLinkTags(linkId: string, userId: string, tags: string[]) {
 export async function loadLibrary(userId: string): Promise<LibrarySnapshot> {
   const supabase = createClient();
   const [linksResult, tagsResult, profileResult] = await Promise.all([
-    supabase
-      .from("links")
-      .select("id, title, url, source, domain, description, saved_reason, preview_title, preview_description, favicon_url, preview_logo_url, metadata_image_url, resource_type, collection_name, is_favorite, created_at, archived_at, link_tags(tags(name))")
-      .order("is_favorite", { ascending: false })
-      .order("created_at", { ascending: false }),
+    loadLinkRows(supabase),
     supabase.from("tags").select("name").order("name"),
     supabase.from("profiles").select("display_name, avatar_url").eq("id", userId).maybeSingle(),
   ]);
@@ -193,6 +222,47 @@ export async function loadLibrary(userId: string): Promise<LibrarySnapshot> {
   };
 }
 
+export type LibraryLinkPreviewInput = {
+  href: string;
+  domain: string;
+  source: string;
+  description?: string;
+  previewTitle?: string;
+  previewDescription?: string;
+  faviconSrc?: string;
+  previewLogoSrc?: string;
+  metadataImageSrc?: string;
+  type?: string;
+};
+
+export async function updateLibraryLinkPreview(
+  linkId: string,
+  expectedHref: string,
+  preview: LibraryLinkPreviewInput
+): Promise<LibraryLink | null> {
+  const values = {
+    url: preview.href,
+    domain: preview.domain,
+    source: preview.source,
+    ...(preview.description ? { description: preview.description } : {}),
+    ...(preview.previewTitle ? { preview_title: preview.previewTitle } : {}),
+    ...(preview.previewDescription ? { preview_description: preview.previewDescription } : {}),
+    ...(preview.faviconSrc ? { favicon_url: preview.faviconSrc } : {}),
+    ...(preview.previewLogoSrc ? { preview_logo_url: preview.previewLogoSrc } : {}),
+    ...(preview.metadataImageSrc ? { metadata_image_url: preview.metadataImageSrc } : {}),
+    ...(preview.type ? { resource_type: preview.type } : {}),
+  };
+  const result = await createClient()
+    .from("links")
+    .update(values)
+    .eq("id", linkId)
+    .eq("url", expectedHref)
+    .select("id")
+    .maybeSingle();
+
+  ensureSuccess(result.error);
+  return result.data ? getLink(result.data.id) : null;
+}
 export async function saveLibraryLink(userId: string, link: LibraryLinkInput): Promise<LibraryLink> {
   const supabase = createClient();
   const values = {
